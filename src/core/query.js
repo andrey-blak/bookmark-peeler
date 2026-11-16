@@ -62,8 +62,8 @@ export function parseQuery(query) {
 }
 
 /** Inverse of parseQuery; uses the raw text of each parameter. */
-export function serializeQuery(params) {
-  return params
+export function serializeQuery(parameters) {
+  return parameters
     .map(p => p.rawName + (p.rawValue === null ? "" : "=" + p.rawValue))
     .join("&");
 }

@@ -54,13 +54,13 @@ function normalizeAction(raw) {
 
   switch (raw.type) {
     case "remove":
-      return { type: "remove", param: isText(raw.param) ? raw.param : "" };
+      return { type: "remove", parameter: isText(raw.parameter) ? raw.parameter : "" };
 
     case "replace": {
       const action = { type: "replace" };
-      const name = normalizePart(raw.name);
+      const parameter = normalizePart(raw.parameter);
       const value = normalizePart(raw.value);
-      if (name) action.name = name;
+      if (parameter) action.parameter = parameter;
       if (value) action.value = value;
       action.ignoreCase = raw.ignoreCase === true;
       return action;
@@ -137,6 +137,8 @@ function validateScope(scope) {
 
   if (!isText(scope.host) || scope.host.trim() === "") {
     issues.push(error(["scope", "host"], "Enter a domain."));
+  } else if (scope.host.includes("*")) {
+    issues.push(error(["scope", "host"], "Wildcards aren't supported in the domain. The Subdomains option includes subdomains."));
   } else if (normalizeHost(scope.host.trim()) === null) {
     issues.push(error(["scope", "host"], "Enter just the domain, without a path, port or spaces."));
   }
@@ -163,7 +165,7 @@ function regexProblem(find) {
 
 function validateReplace(action, path) {
   const issues = [];
-  const parts = ["name", "value"].filter(key => isObject(action[key]));
+  const parts = ["parameter", "value"].filter(key => isObject(action[key]));
   const hasPattern = key => isText(action[key]?.find) && action[key].find !== "";
 
   for (const key of parts) {
@@ -174,7 +176,8 @@ function validateReplace(action, path) {
     } else if (hasPattern(key)) {
       const problem = regexProblem(part.find);
       if (problem) issues.push(error([...path, key, "find"], `Not a valid regular expression (${problem}).`));
-    } else if (part.replace !== undefined) {
+    } else if (part.replace !== undefined && (hasPattern("parameter") || hasPattern("value"))) {
+      // Without any pattern the error for the whole action says it already.
       issues.push(warning([...path, key, "find"], `Enter a pattern to replace in the ${key}.`));
     }
 
@@ -183,10 +186,10 @@ function validateReplace(action, path) {
     }
   }
 
-  if (!hasPattern("name") && !hasPattern("value")) {
-    issues.push(error(path, "Enter a pattern for the name or the value."));
+  if (!hasPattern("parameter") && !hasPattern("value")) {
+    issues.push(error(path, "Enter a pattern for the parameter or the value."));
   } else if (!parts.some(key => isText(action[key].replace))) {
-    issues.push(warning(path, "Nothing is replaced. Fill in the replacement for the name or the value."));
+    issues.push(warning(path, "Nothing is replaced. Tick \"Replace with\" for the parameter or the value."));
   }
 
   return issues;
@@ -197,9 +200,9 @@ function validateAction(action, index) {
 
   switch (action?.type) {
     case "remove":
-      return isText(action.param) && action.param !== ""
+      return isText(action.parameter) && action.parameter !== ""
         ? []
-        : [error([...path, "param"], "Enter a parameter name.")];
+        : [error([...path, "parameter"], "Enter a parameter name.")];
 
     case "replace":
       return validateReplace(action, path);

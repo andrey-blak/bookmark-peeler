@@ -27,18 +27,18 @@ export function cleanUrl(url, rules) {
   // No query, or an empty one: nothing to clean.
   if (!query) return url;
 
-  let params = parseQuery(query);
+  let parameters = parseQuery(query);
 
   for (const rule of rules) {
     if (!rule || rule.enabled === false || !Array.isArray(rule.actions)) continue;
     if (!matchesScope(rule.scope, url)) continue;
 
     for (const action of rule.actions) {
-      params = applyAction(action, params);
+      parameters = applyAction(action, parameters);
     }
   }
 
-  const cleaned = serializeQuery(params);
+  const cleaned = serializeQuery(parameters);
   if (cleaned === query) return url;
 
   // Every parameter removed: drop the "?" as well.

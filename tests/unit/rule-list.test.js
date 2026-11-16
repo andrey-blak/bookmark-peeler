@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   moveRule,
   dropIndex,
+  upsertRule,
   removeRule,
   restoreRule,
   setEnabled,
@@ -19,7 +20,7 @@ const rule = (id, extra = {}) => ({
   id,
   enabled: true,
   scope: { type: "all" },
-  actions: [{ type: "remove", param: "a" }],
+  actions: [{ type: "remove", parameter: "a" }],
   ...extra,
 });
 
@@ -120,6 +121,36 @@ describe("removeRule and restoreRule", () => {
 
   test("restoring nothing changes nothing", () => {
     assert.deepEqual(ids(restoreRule(abcd(), null)), ["a", "b", "c", "d"]);
+  });
+});
+
+describe("upsertRule", () => {
+  test("replaces a rule with the same id, in the same place", () => {
+    const { rules, index } = upsertRule(abcd(), rule("c", { name: "new" }));
+    assert.deepEqual(ids(rules), ["a", "b", "c", "d"]);
+    assert.equal(rules[2].name, "new");
+    assert.equal(index, 2);
+  });
+
+  test("keeps the stored enabled state, which the editor does not change", () => {
+    const stored = [rule("a", { enabled: false })];
+    const { rules } = upsertRule(stored, rule("a", { enabled: true, name: "new" }));
+    assert.equal(rules[0].enabled, false);
+    assert.equal(rules[0].name, "new");
+  });
+
+  test("appends a rule with a new id", () => {
+    const { rules, index } = upsertRule(abcd(), rule("e"));
+    assert.deepEqual(ids(rules), ["a", "b", "c", "d", "e"]);
+    assert.equal(index, 4);
+  });
+
+  test("does not modify the input", () => {
+    const stored = abcd();
+    upsertRule(stored, rule("a", { name: "x" }));
+    upsertRule(stored, rule("z"));
+    assert.equal(stored.length, 4);
+    assert.equal("name" in stored[0], false);
   });
 });
 

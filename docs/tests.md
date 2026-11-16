@@ -1,0 +1,108 @@
+# Tests
+
+## Automated tests
+
+```bash
+scripts/test.sh
+```
+
+They run with the project-local Node (see [development.md](development.md)) and use Node's built-in runner.
+The tests are in `tests/unit/`, one file per module:
+
+- `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
+- `src/background/`: what happens when a bookmark is created, with a fake browser.
+- `src/options/`: the logic of the rule list and of the rule editor, without DOM.
+- The manifest: permissions, background page, options page and icons.
+
+Not covered by them: the pages as drawn in Firefox (layout, focus, drag and drop, dialogs) and the real bookmark events.
+Those are checked by the manual tests below.
+
+## Manual tests
+
+Load the add-on first, as described in [development.md](development.md#trying-the-add-on-in-firefox).
+Repeat the tests after a change in the area they cover.
+A temporary add-on, and its stored rules, are gone after Firefox restarts.
+
+### Background wiring
+
+The unit tests cover the logic with a fake browser; this checks it in Firefox.
+To try this without the editor, put a rule into storage from the add-on's own console:
+
+1. In `about:debugging#/runtime/this-firefox` click "Inspect" next to Bookmark Peeler and open the Console.
+2. Run:
+
+   ```js
+   await browser.storage.local.set({
+     schemaVersion: 1,
+     settings: { cleanOnEdit: false },
+     rules: [{
+       scope: { type: "host", host: "youtube.com" },
+       actions: [{ type: "remove", parameter: "pp" }]
+     }]
+   })
+   ```
+
+3. Bookmark `https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D` in each of these ways:
+   - Ctrl+D, and the star button in the address bar.
+   - Dragging the page icon from the address bar onto the bookmarks toolbar.
+   - Dragging a link to that URL onto the bookmarks toolbar, and onto a folder in the Library window.
+   - "Bookmark All Tabs".
+4. Open the Library (Ctrl+Shift+O), select each bookmark and check its Location: `pp` must be gone and `v=KAq7MwkoFR8` must stay.
+5. Errors, if any, show in the add-on's Console as `Bookmark Peeler: ...`.
+
+### Main page: the rule list
+
+To get several rules quickly, put them into storage from the add-on's console, as in the test above (the editor can add them too, see the next section):
+
+```js
+await browser.storage.local.set({
+  schemaVersion: 1,
+  settings: { cleanOnEdit: false },
+  rules: [
+    { name: "Tracking parameters", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] },
+    { name: "YouTube", scope: { type: "host", host: "youtube.com", path: "/watch" }, actions: [{ type: "remove", parameter: "pp" }] },
+    { name: "Has an error", scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "x" }] },
+    { name: "Switched off", enabled: false, scope: { type: "host", host: "example.org", subdomains: false }, actions: [] },
+    { scope: { type: "host", host: "news.example.com" }, actions: [{ type: "remove", parameter: "ref" }] }
+  ]
+})
+```
+
+Click the toolbar button: the main page must open in its own tab. Then check:
+
+1. The list shows the five rules. The rule without a name is titled with its domain. "Has an error" has a red mark and "Switched off" a yellow one; hovering a mark shows the reason.
+2. The switch of a rule saves at once: reload the page, the state stays.
+3. Click a rule: it is highlighted. Up and Down select the previous and next rule, and stop at the ends. Ctrl+Up and Ctrl+Down move the selected rule and keep the focus on it. Reload: the order stays.
+4. Drag a rule by its handle (or anywhere on the row) between two others: a line shows where it lands. Reload: the order stays.
+5. Delete a rule with the × button: an Undo message appears for a few seconds, and the next rule is selected. Undo puts the rule back at its old position; after the message goes away the rule stays deleted.
+6. Open the main page in two tabs and change the list in one: the other tab follows.
+7. Switch the system between light and dark: colours follow, and fonts are the system's.
+8. Keyboard, with the focus on a rule (click it or use Up and Down):
+   - Enter and Space switch the rule on or off, whether the focus is on its name or on its switch (Space on the switch must not toggle twice). On the × button they delete instead.
+   - Delete deletes the rule and moves the focus to the next one.
+   - Ctrl+Z, while the Undo message is visible, restores the last deleted rule at its old position and focuses it. After the message has gone, Ctrl+Z does nothing.
+9. The page does not print the shortcuts anywhere.
+
+The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete.
+
+### Main page: the rule editor
+
+Start with the rules from the previous section, or an empty list.
+
+1. Add rule: the editor opens with an empty Name, Scope "Domain" and an empty Domain showing the `example.com` placeholder. The list gets an italic "New rule" row. No error or warning is visible yet.
+2. Type `github.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter" and "Replace in parameter or value", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
+3. Fill in Parameter `^visibility$`, leave "Replace with" unticked there, Value `^public$`, and in the Value replacement `private`. Then type `(` in the Value pattern: a red message about the regular expression appears under it, the field is outlined, and the line next to Save says "1 error. The rule isn't applied until the error is fixed." Fix the pattern.
+4. Untick "Replace with" on the Value line: a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
+5. Press Save (and, in another rule, Ctrl+S while typing in a field: Firefox's "Save page" must not open). The row gets the name, or the domain when the name is empty, the • goes, and "Saved." is shown. Reload the page: the rule is there and opens with the same values.
+6. With a saved rule open, change a field and press Revert: the stored values come back. On a new rule, Revert clears the form.
+7. Scope: "All sites" hides Domain, Subdomains and Path; going back to "Domain" brings the domain back; "Domain + path" shows Path and a hint about `*` and `**`. Enter `/new` and save.
+8. Add a "Remove parameter" action with `utm_*`, then delete it with ×; the focus moves to the Add action menu. Delete an action that is not the last one: the actions after it move up and keep their values.
+9. Unsaved changes: change a field of a rule, then click another rule. A dialog offers Save, Discard and Cancel. Cancel (or Esc) stays; Discard switches and drops the changes; Save stores them and then switches. The same happens for Add rule and Duplicate, and with Up and Down in the list.
+10. Duplicate: a new unsaved row appears, the Name is "<name> copy" (empty when the rule had none), and the scope and actions are the same. Changing the copy does not change the original.
+11. With unsaved changes, reload the page or close the tab: Firefox asks for confirmation.
+12. Delete the open rule from the list: the next rule opens in the editor (or the editor empties when it was the last). Ctrl+Z brings it back.
+13. Switch a rule off in the list while it is open in the editor, then Save an edit: the rule stays off.
+14. Open the page in two tabs: save a change in one; the other tab, if it has no unsaved changes, shows it.
+15. Messages on opening a stored rule: a rule without actions shows "This rule has no actions, so it does nothing." under "Actions" as soon as it is opened. Save a new rule without actions, select another rule and come back: the warning is still there. "Has an error" shows "Enter a domain." under Domain at once. After changing a field of a stored rule and pressing Revert, the messages are still shown. A new rule shows no message until you type in it.
+16. Domain and path fields: the Path placeholder is `watch` and its hint shows `playlist/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. The Subdomains option includes subdomains." A path without the leading slash (`new`) still matches `/new`.
+17. End to end: create "Remove pp" for `youtube.com`, action Remove parameter `pp`, and Save. Bookmark a YouTube URL with `&pp=...`: the saved bookmark has no `pp`.

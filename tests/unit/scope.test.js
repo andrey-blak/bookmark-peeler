@@ -45,6 +45,12 @@ describe("hostMatches", () => {
     assert.equal(hostMatches("localhost", true, "localhost"), true);
   });
 
+  test("wildcards are not supported: such a host matches nothing", () => {
+    assert.equal(hostMatches("*.youtube.com", true, "www.youtube.com"), false);
+    assert.equal(hostMatches("youtube.*", true, "youtube.com"), false);
+    assert.equal(hostMatches("*", true, "youtube.com"), false);
+  });
+
   test("empty or invalid hosts never match", () => {
     assert.equal(hostMatches("", true, "youtube.com"), false);
     assert.equal(hostMatches(undefined, true, "youtube.com"), false);

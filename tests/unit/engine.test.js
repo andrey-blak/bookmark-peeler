@@ -6,11 +6,11 @@ const YOUTUBE = "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D
 
 const removePp = {
   scope: { type: "host", host: "youtube.com" },
-  actions: [{ type: "remove", param: "pp" }],
+  actions: [{ type: "remove", parameter: "pp" }],
 };
 const removeUtm = {
   scope: { type: "all" },
-  actions: [{ type: "remove", param: "utm_*" }],
+  actions: [{ type: "remove", parameter: "utm_*" }],
 };
 
 describe("cleanUrl: the basics", () => {
@@ -37,7 +37,7 @@ describe("cleanUrl: the basics", () => {
   test("path scopes are respected", () => {
     const rule = {
       scope: { type: "host", host: "youtube.com", path: "/watch" },
-      actions: [{ type: "remove", param: "pp" }],
+      actions: [{ type: "remove", parameter: "pp" }],
     };
     assert.equal(cleanUrl("https://www.youtube.com/playlist?pp=1", [rule]), "https://www.youtube.com/playlist?pp=1");
     assert.equal(cleanUrl("https://www.youtube.com/watch?pp=1&v=2", [rule]), "https://www.youtube.com/watch?v=2");
@@ -85,8 +85,8 @@ describe("cleanUrl: several rules and actions", () => {
   });
 
   test("rules run in list order and each sees the previous result", () => {
-    const rename = { scope: { type: "all" }, actions: [{ type: "replace", name: { find: "^utm_(.*)$", replace: "$1" } }] };
-    const removeSource = { scope: { type: "all" }, actions: [{ type: "remove", param: "source" }] };
+    const rename = { scope: { type: "all" }, actions: [{ type: "replace", parameter: { find: "^utm_(.*)$", replace: "$1" } }] };
+    const removeSource = { scope: { type: "all" }, actions: [{ type: "remove", parameter: "source" }] };
 
     assert.equal(cleanUrl("https://e.org/?utm_source=x&a=1", [rename, removeSource]), "https://e.org/?a=1");
     assert.equal(cleanUrl("https://e.org/?utm_source=x&a=1", [removeSource, rename]), "https://e.org/?source=x&a=1");
@@ -96,8 +96,8 @@ describe("cleanUrl: several rules and actions", () => {
     const rule = {
       scope: { type: "all" },
       actions: [
-        { type: "replace", name: { find: "^a$", replace: "b" } },
-        { type: "remove", param: "b" },
+        { type: "replace", parameter: { find: "^a$", replace: "b" } },
+        { type: "remove", parameter: "b" },
       ],
     };
     assert.equal(cleanUrl("https://e.org/?a=1&c=2", [rule]), "https://e.org/?c=2");
@@ -108,7 +108,7 @@ describe("cleanUrl: several rules and actions", () => {
       scope: { type: "host", host: "github.com" },
       actions: [{
         type: "replace",
-        name: { find: "^visibility$" },
+        parameter: { find: "^visibility$" },
         value: { find: "^public$", replace: "private" },
       }],
     };
@@ -149,7 +149,7 @@ describe("cleanUrl: rules that are switched off or broken", () => {
 });
 
 describe("cleanUrl: URLs that are never touched", () => {
-  const rule = { scope: { type: "all" }, actions: [{ type: "remove", param: "*" }] };
+  const rule = { scope: { type: "all" }, actions: [{ type: "remove", parameter: "*" }] };
 
   test("only http and https URLs are cleaned", () => {
     for (const url of [

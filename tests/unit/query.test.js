@@ -103,9 +103,9 @@ describe("parseQuery", () => {
   });
 
   test("splits on & and exposes decoded name and value", () => {
-    const params = parseQuery("v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D");
+    const parameters = parseQuery("v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D");
     assert.deepEqual(
-      params.map(({ name, value }) => [name, value]),
+      parameters.map(({ name, value }) => [name, value]),
       [["v", "KAq7MwkoFR8"], ["pp", "ugUEEgJydQ=="]],
     );
   });
@@ -149,11 +149,11 @@ describe("parseQuery", () => {
   });
 
   test("empty segments are kept as parameters with an empty name", () => {
-    const params = parseQuery("a=1&&b=2&");
-    assert.equal(params.length, 4);
-    assert.equal(params[1].name, "");
-    assert.equal(params[1].value, null);
-    assert.equal(params[3].name, "");
+    const parameters = parseQuery("a=1&&b=2&");
+    assert.equal(parameters.length, 4);
+    assert.equal(parameters[1].name, "");
+    assert.equal(parameters[1].value, null);
+    assert.equal(parameters[3].name, "");
   });
 
   test("malformed escapes fall back to the raw text", () => {
@@ -177,8 +177,8 @@ describe("serializeQuery", () => {
   });
 
   test("dropping a parameter leaves the others byte-identical", () => {
-    const params = parseQuery("q=hello%20world&pp=x&t=a~b&r=a+b");
-    const kept = params.filter(p => p.name !== "pp");
+    const parameters = parseQuery("q=hello%20world&pp=x&t=a~b&r=a+b");
+    const kept = parameters.filter(p => p.name !== "pp");
     assert.equal(serializeQuery(kept), "q=hello%20world&t=a~b&r=a+b");
   });
 

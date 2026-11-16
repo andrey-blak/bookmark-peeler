@@ -213,3 +213,192 @@ main {
 .toast[hidden] {
   display: none;
 }
+
+/* Rule list additions */
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sidebar-head h2 {
+  margin: 0;
+}
+
+.rule.unsaved .title::after {
+  content: " •";
+  color: AccentColor;
+}
+
+.rule.draft .title {
+  font-style: italic;
+}
+
+/* Rule editor */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.editor-form section {
+  margin-top: 16px;
+}
+
+.editor h3 {
+  margin: 0 0 8px;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.row > .field:nth-child(2),
+.row > .field:first-child:nth-last-child(2) {
+  flex: 1 1 200px;
+}
+
+.label {
+  color: GrayText;
+  font-size: 0.85em;
+}
+
+.editor input[type="text"] {
+  min-width: 0;
+  padding: 4px 6px;
+  font: inherit;
+}
+
+.editor input.mono {
+  font-family: monospace;
+}
+
+.editor input.invalid {
+  outline: 1px solid var(--danger);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.check input {
+  margin: 0;
+  accent-color: AccentColor;
+}
+
+.hint {
+  margin: 4px 0 0;
+  color: GrayText;
+  font-size: 0.85em;
+}
+
+.msg {
+  min-height: 0;
+  font-size: 0.85em;
+}
+
+.msg:empty {
+  display: none;
+}
+
+.msg.error {
+  margin-top: 4px;
+  color: var(--danger);
+}
+
+.msg.warning {
+  margin-top: 4px;
+  color: var(--warning);
+}
+
+.card {
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+
+.line .k {
+  width: 70px;
+  flex: none;
+  color: GrayText;
+}
+
+.line .field {
+  flex: 1 1 140px;
+}
+
+.line .msg {
+  flex-basis: 100%;
+  padding-inline-start: 82px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.footer .summary {
+  color: GrayText;
+}
+
+.primary {
+  background: AccentColor;
+  color: AccentColorText;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 14px;
+  font: inherit;
+}
+
+dialog form p {
+  margin: 0 0 12px;
+}
+
+dialog .buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

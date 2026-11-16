@@ -1,10 +1,11 @@
-// Options page: the rule list.
-// The list logic is in rule-list.js (unit-tested); this file only connects it to the DOM and to storage.
+// Main page: the rule list and the rule editor.
+// The logic is in rule-list.js and editor-model.js (unit-tested); this file connects it to the DOM and to storage.
 
 import { readConfig, validateRule } from "../core/schema.js";
 import {
   moveRule,
   dropIndex,
+  upsertRule,
   removeRule,
   restoreRule,
   setEnabled,
@@ -15,6 +16,8 @@ import {
   stepSelection,
   selectionAfterRemove,
 } from "./rule-list.js";
+import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
+import { createEditor } from "./editor.js";
 
 const STORAGE_KEYS = ["schemaVersion", "settings", "rules"];
 const UNDO_MS = 8000;
@@ -23,11 +26,17 @@ const $ = id => document.getElementById(id);
 const list = $("rules");
 
 let config = null; // what was loaded; null when it cannot be edited
-let selectedId = null;
+let selectedId = null; // the stored rule open in the editor; null for a new draft or nothing
 let focusId = null; // rule whose main button gets the focus after the next render
 let draggingId = null;
 let dropTarget = null; // { id, after }
 let undo = null; // { removed, timer }
+
+const editor = createEditor($("editor"), {
+  onSave: saveEditor,
+  onChange: updateMarks,
+  onDuplicate: duplicateRule,
+});
 
 // --- Storage ---
 
@@ -36,6 +45,8 @@ async function load({ onlyIfChanged = false } = {}) {
 
   if (loaded.status !== "ok") {
     config = null;
+    selectedId = null;
+    editor.close();
     showNotice("These rules were saved by a newer version of Bookmark Peeler, so they can't be shown or changed here.");
     render();
     return;
@@ -45,20 +56,38 @@ async function load({ onlyIfChanged = false } = {}) {
 
   config = loaded.config;
   showNotice("");
+  syncEditor();
   render();
 }
 
+/** The rules changed (maybe in another tab): bring the open rule up to date, unless it has unsaved changes. */
+function syncEditor() {
+  if (!editor.isOpen || editor.isNew) return;
+
+  const rule = config.rules.find(r => r.id === editor.id);
+  if (rule) {
+    editor.reload(rule);
+  } else if (!editor.isDirty()) {
+    selectedId = null;
+    editor.close();
+  }
+}
+
+/** Returns whether the rules were stored. */
 async function save(rules, { rerender = true } = {}) {
   const next = { ...config, rules };
 
   try {
     await browser.storage.local.set(next);
-    config = next;
-    if (rerender) render();
   } catch (error) {
     console.error("Bookmark Peeler:", error);
     showNotice("Couldn't save your changes. Reload the page and try again.");
+    return false;
   }
+
+  config = next;
+  if (rerender) render();
+  return true;
 }
 
 function showNotice(text) {
@@ -67,7 +96,7 @@ function showNotice(text) {
   notice.hidden = text === "";
 }
 
-// --- Rendering ---
+// --- Rendering the list ---
 
 function indexOfId(id) {
   return config ? config.rules.findIndex(rule => rule.id === id) : -1;
@@ -143,8 +172,31 @@ function renderRule(rule) {
   return item;
 }
 
+/** The row for a rule that has not been saved yet. */
+function renderDraftRow() {
+  const item = document.createElement("li");
+  item.className = "rule draft selected";
+  item.dataset.draft = "";
+
+  const main = document.createElement("button");
+  main.type = "button";
+  main.className = "main";
+  main.setAttribute("aria-current", "true");
+
+  const titleEl = document.createElement("span");
+  titleEl.className = "title";
+  titleEl.textContent = editor.title;
+  main.append(titleEl);
+
+  item.append(main);
+  return item;
+}
+
 function render() {
-  list.replaceChildren(...(config ? config.rules.map(renderRule) : []));
+  const items = config ? config.rules.map(renderRule) : [];
+  if (config && editor.isOpen && editor.isNew) items.push(renderDraftRow());
+  list.replaceChildren(...items);
+  updateMarks();
 
   if (focusId !== null) {
     list.querySelector(`[data-id="${CSS.escape(focusId)}"] .main`)?.focus();
@@ -152,13 +204,97 @@ function render() {
   }
 }
 
-// --- Actions ---
+/** Marks the row of the open rule when it has unsaved changes, and keeps the draft row's title current. */
+function updateMarks() {
+  const dirty = editor.isDirty();
 
-function select(id, { focus = false } = {}) {
+  for (const item of list.querySelectorAll(".rule")) {
+    const isOpen = item.dataset.draft !== undefined ? editor.isNew : item.dataset.id === selectedId;
+    item.classList.toggle("unsaved", isOpen && dirty);
+  }
+
+  const draftTitle = list.querySelector(".draft .title");
+  if (draftTitle) draftTitle.textContent = editor.title;
+}
+
+// --- Opening, saving and leaving the editor ---
+
+function askUnsaved() {
+  const dialog = $("unsaved");
+
+  return new Promise(resolve => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "cancel"), { once: true });
+    dialog.returnValue = "";
+    dialog.showModal();
+  });
+}
+
+/** Returns true when it is fine to replace what is in the editor: nothing unsaved, or the user chose Save or Discard. */
+async function confirmLeave() {
+  if (!editor.isDirty()) return true;
+
+  const choice = await askUnsaved();
+  if (choice === "save") {
+    await saveEditor();
+    return true;
+  }
+  return choice === "discard";
+}
+
+async function saveEditor() {
+  if (!config || !editor.isOpen) return;
+
+  const rule = editor.toRule();
+  const { rules } = upsertRule(config.rules, rule);
+  if (!(await save(rules, { rerender: false }))) return;
+
+  selectedId = rule.id;
+  editor.markSaved(config.rules.find(r => r.id === rule.id));
+  render();
+}
+
+async function openRule(id, { focus = false } = {}) {
+  if (!config) return;
+
+  if (id === selectedId && editor.isOpen) {
+    if (focus) {
+      focusId = id;
+      render();
+    }
+    return;
+  }
+
+  if (!(await confirmLeave())) return;
+
+  const rule = config.rules.find(r => r.id === id);
+  if (!rule) return;
+
   selectedId = id;
+  editor.open(rule);
   if (focus) focusId = id;
   render();
 }
+
+async function addRule() {
+  if (!config || !(await confirmLeave())) return;
+
+  selectedId = null;
+  editor.open(newDraft(), { isNew: true });
+  render();
+  editor.focus("name");
+}
+
+async function duplicateRule() {
+  const snapshot = editor.snapshot();
+  if (!config || !snapshot || !(await confirmLeave())) return;
+
+  selectedId = null;
+  editor.open(duplicateDraft(snapshot), { isNew: true });
+  render();
+  editor.focus("name");
+}
+
+// --- List actions ---
 
 async function toggleRule(id, enabled) {
   const index = indexOfId(id);
@@ -177,8 +313,14 @@ async function deleteRule(id) {
   if (index < 0) return;
 
   const { rules, removed } = removeRule(config.rules, index);
-  const next = selectionAfterRemove(index, rules.length);
-  selectedId = next < 0 ? null : rules[next].id;
+
+  // Deleting the open rule drops its unsaved changes and opens the next rule.
+  if (id === selectedId) {
+    const next = selectionAfterRemove(index, rules.length);
+    selectedId = next < 0 ? null : rules[next].id;
+    if (next < 0) editor.close();
+    else editor.open(rules[next]);
+  }
   focusId = selectedId;
 
   await save(rules);
@@ -190,9 +332,17 @@ async function undoDelete() {
 
   const { removed } = undo;
   hideUndo();
-  selectedId = removed.rule.id;
-  focusId = selectedId;
-  await save(restoreRule(config.rules, removed));
+
+  // The restored rule is opened only when that does not throw away what is in the editor.
+  const open = !editor.isDirty() && !editor.isNew;
+  if (!(await save(restoreRule(config.rules, removed)))) return;
+
+  if (open) {
+    selectedId = removed.rule.id;
+    focusId = selectedId;
+    editor.open(config.rules.find(r => r.id === selectedId));
+    render();
+  }
 }
 
 async function move(id, to) {
@@ -224,12 +374,12 @@ const itemOf = element => element.closest(".rule");
 
 list.addEventListener("click", event => {
   const item = itemOf(event.target);
-  if (!item) return;
+  if (!item || item.dataset.draft !== undefined) return;
 
   if (event.target.closest(".delete")) {
     deleteRule(item.dataset.id);
   } else if (event.target.closest(".main")) {
-    select(item.dataset.id, { focus: true });
+    openRule(item.dataset.id, { focus: true });
   }
 });
 
@@ -244,6 +394,14 @@ list.addEventListener("change", event => {
 const EDITABLE = 'input:not([type="checkbox"]):not([type="radio"]), textarea, select, [contenteditable]';
 
 document.addEventListener("keydown", event => {
+  if (isSaveKey(event)) {
+    if (editor.isOpen) {
+      event.preventDefault();
+      saveEditor();
+    }
+    return;
+  }
+
   const command = keyCommand(event);
   if (!command || !config) return;
 
@@ -258,8 +416,12 @@ document.addEventListener("keydown", event => {
   const item = itemOf(event.target);
   if (!item) return;
 
+  // The row of an unsaved new rule only takes part in selecting.
+  const isDraftRow = item.dataset.draft !== undefined;
+  if (isDraftRow && command.type !== "select") return;
+
   const id = item.dataset.id;
-  const index = indexOfId(id);
+  const index = isDraftRow ? config.rules.length : indexOfId(id);
   const onDeleteButton = event.target.closest(".delete") !== null;
   const onSwitch = event.target.matches('input[type="checkbox"]');
 
@@ -267,13 +429,12 @@ document.addEventListener("keydown", event => {
     case "select": {
       event.preventDefault();
       const target = stepSelection(index, command.delta, config.rules.length);
-      if (target >= 0) select(config.rules[target].id, { focus: true });
+      if (target >= 0) openRule(config.rules[target].id, { focus: true });
       break;
     }
 
     case "move":
       event.preventDefault();
-      selectedId = id;
       move(id, Math.max(0, Math.min(index + command.delta, config.rules.length - 1)));
       break;
 
@@ -299,7 +460,7 @@ function clearDropMarks() {
 
 list.addEventListener("dragstart", event => {
   const item = itemOf(event.target);
-  if (!item) return;
+  if (!item || item.dataset.draft !== undefined) return;
 
   draggingId = item.dataset.id;
   event.dataTransfer.effectAllowed = "move";
@@ -309,7 +470,7 @@ list.addEventListener("dragstart", event => {
 
 list.addEventListener("dragover", event => {
   const item = itemOf(event.target);
-  if (!item || draggingId === null) return;
+  if (!item || item.dataset.draft !== undefined || draggingId === null) return;
 
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
@@ -330,10 +491,7 @@ list.addEventListener("drop", event => {
 
   const from = indexOfId(draggingId);
   const over = indexOfId(dropTarget.id);
-  if (from >= 0 && over >= 0) {
-    selectedId = draggingId;
-    move(draggingId, dropIndex(from, over, dropTarget.after));
-  }
+  if (from >= 0 && over >= 0) move(draggingId, dropIndex(from, over, dropTarget.after));
 });
 
 list.addEventListener("dragend", () => {
@@ -342,12 +500,18 @@ list.addEventListener("dragend", () => {
   clearDropMarks();
 });
 
+$("add").addEventListener("click", addRule);
 $("toast-undo").addEventListener("click", undoDelete);
+
+window.addEventListener("beforeunload", event => {
+  if (editor.isDirty()) event.preventDefault();
+});
 
 browser.storage.onChanged.addListener((changes, area) => {
   if (area === "local") load({ onlyIfChanged: true });
 });
 
+editor.close();
 load().catch(error => {
   console.error("Bookmark Peeler:", error);
   showNotice("Couldn't load your rules.");

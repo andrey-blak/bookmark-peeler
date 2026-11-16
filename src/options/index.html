@@ -14,19 +14,31 @@
 
   <main>
     <section class="sidebar" aria-labelledby="rules-heading">
-      <h2 id="rules-heading">Rules</h2>
+      <div class="sidebar-head">
+        <h2 id="rules-heading">Rules</h2>
+        <button id="add" type="button">Add rule</button>
+      </div>
       <p id="notice" class="notice" role="alert" hidden></p>
       <ul id="rules" class="rules" aria-label="Rules"></ul>
     </section>
 
-    <section class="editor" aria-label="Rule editor">
-      <p class="placeholder">The rule editor is not available yet.</p>
-    </section>
+    <section id="editor" class="editor" aria-label="Rule editor"></section>
   </main>
 
   <div id="toast" class="toast" role="status" hidden>
     <span id="toast-text"></span>
     <button id="toast-undo" type="button" title="Ctrl+Z">Undo</button>
   </div>
+
+  <dialog id="unsaved" aria-labelledby="unsaved-text">
+    <form method="dialog">
+      <p id="unsaved-text">This rule has unsaved changes.</p>
+      <div class="buttons">
+        <button value="save" autofocus>Save</button>
+        <button value="discard">Discard</button>
+        <button value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>

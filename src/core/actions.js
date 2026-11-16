@@ -3,20 +3,20 @@
 // Parameters come from parseQuery (see query.js).
 // An action returns a new array and never modifies its input.
 // Parameters it does not touch are passed through as the same objects, so their raw text is kept.
-// A changed name or value is re-encoded with encodeURIComponent; its unchanged counterpart keeps its raw text.
+// A changed parameter name or value is re-encoded with encodeURIComponent; its unchanged counterpart keeps its raw text.
 //
-// remove:  { type: "remove", param: "pp" | "utm_*" }
+// remove:  { type: "remove", parameter: "pp" | "utm_*" }
 // replace: { type: "replace",
-//            name?:  { find, replace? },
-//            value?: { find, replace? },
+//            parameter?: { find, replace? },
+//            value?:     { find, replace? },
 //            ignoreCase?: false }
-//   find is a regular expression, run on the decoded name or value; an empty or missing find is no condition.
+//   find is a regular expression, run on the decoded parameter name or value; an empty or missing find is no condition.
 //   A parameter qualifies when every non-empty find matches.
 //   A parameter without a value ("fbclid") never matches a value find.
 //   replace replaces every match; without replace the pattern only filters.
 //   The replacement text supports the String.replace patterns: $1, $<name>, $&, $` (text before the match), $' (text after the match), $$.
-//   "Before" and "after" mean the rest of that name or value, not of the whole URL.
-//   A name or value is replaced from its original text, not from the other part's result.
+//   "Before" and "after" mean the rest of that parameter name or value, not of the whole URL.
+//   The parameter name and the value are each replaced from their original text, not from the other part's result.
 //   An invalid regex disables the whole action.
 
 /**
@@ -36,13 +36,13 @@ export function nameMatches(pattern, name) {
   return new RegExp("^" + source + "$", "s").test(name);
 }
 
-function removeParams(action, params) {
-  return params.filter(p => !nameMatches(action.param, p.name));
+function removeParameters(action, parameters) {
+  return parameters.filter(p => !nameMatches(action.parameter, p.name));
 }
 
 const INVALID = Symbol("invalid regex");
 
-// One side (name or value) of a replace action: null when it has no find, INVALID when the regex is bad.
+// One side (parameter or value) of a replace action: null when it has no find, INVALID when the regex is bad.
 function compilePart(part, ignoreCase) {
   if (typeof part?.find !== "string" || part.find === "") return null;
 
@@ -57,23 +57,23 @@ function compilePart(part, ignoreCase) {
   }
 }
 
-function replaceParams(action, params) {
+function replaceParameters(action, parameters) {
   const ignoreCase = action.ignoreCase === true;
-  const name = compilePart(action.name, ignoreCase);
+  const parameter = compilePart(action.parameter, ignoreCase);
   const value = compilePart(action.value, ignoreCase);
 
-  if (name === INVALID || value === INVALID) return params;
-  if (name?.replace == null && value?.replace == null) return params;
+  if (parameter === INVALID || value === INVALID) return parameters;
+  if (parameter?.replace == null && value?.replace == null) return parameters;
 
-  return params.map(p => {
-    if (name && !name.test.test(p.name)) return p;
+  return parameters.map(p => {
+    if (parameter && !parameter.test.test(p.name)) return p;
     if (value && (p.value === null || !value.test.test(p.value))) return p;
 
     let { rawName, name: newName, rawValue, value: newValue } = p;
 
     try {
-      if (name?.replace != null) {
-        const replaced = p.name.replace(name.all, name.replace);
+      if (parameter?.replace != null) {
+        const replaced = p.name.replace(parameter.all, parameter.replace);
         // A parameter with an empty name is never produced.
         if (replaced !== p.name && replaced !== "") {
           newName = replaced;
@@ -98,13 +98,13 @@ function replaceParams(action, params) {
   });
 }
 
-export function applyAction(action, params) {
+export function applyAction(action, parameters) {
   switch (action?.type) {
     case "remove":
-      return removeParams(action, params);
+      return removeParameters(action, parameters);
     case "replace":
-      return replaceParams(action, params);
+      return replaceParameters(action, parameters);
     default:
-      return params;
+      return parameters;
   }
 }

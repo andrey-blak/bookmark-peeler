@@ -35,7 +35,7 @@ Rules run in list order and every matching rule applies; each sees the result of
 | Field | Type | Required | Default | Meaning |
 |---|---|---|---|---|
 | `type` | `"all"` or `"host"` | yes | none | `all`: every site. `host`: one domain, optionally one path. |
-| `host` | string | when `type` is `host` | none | Plain domain name such as `youtube.com`: no path, port, `@` or spaces. Case-insensitive; non-ASCII names are matched in their punycode form. |
+| `host` | string | when `type` is `host` | none | Plain domain name such as `youtube.com`: no path, port, `@`, `*` or spaces. Case-insensitive; non-ASCII names are matched in their punycode form. |
 | `subdomains` | boolean | no | `true` | Also match subdomains, so `youtube.com` matches `www.youtube.com`. Only `false` turns it off. |
 | `path` | string | no | none (any path) | Path or path pattern, see below. Cannot contain `?` or `#`. |
 
@@ -60,33 +60,33 @@ Every action has a `type`.
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `type` | `"remove"` | yes | |
-| `param` | string | yes, not empty | Parameter name. A plain name matches exactly; `*` matches any characters. Case-sensitive, compared with the decoded name. |
+| `parameter` | string | yes, not empty | Parameter name. A plain name matches exactly; `*` matches any characters. Case-sensitive, compared with the decoded name. |
 
 ### `replace`
 
 | Field | Type | Required | Default | Meaning |
 |---|---|---|---|---|
 | `type` | `"replace"` | yes | | |
-| `name` | pattern | no | none | Condition on, and optional replacement in, the parameter name. |
+| `parameter` | pattern | no | none | Condition on, and optional replacement in, the parameter name. |
 | `value` | pattern | no | none | The same for the parameter value. |
 | `ignoreCase` | boolean | no | `false` | Make the regular expressions case-insensitive. Only `true` turns it on. |
 
-At least one of `name` and `value` needs a non-empty `find`.
+At least one of `parameter` and `value` needs a non-empty `find`.
 
-### Pattern (`name` and `value` of `replace`)
+### Pattern (`parameter` and `value` of `replace`)
 
 | Field | Type | Required | Default | Meaning |
 |---|---|---|---|---|
-| `find` | string | no | `""` | JavaScript regular expression, run on the decoded name or value. It is not anchored, so use `^` and `$` for an exact match. Empty means no condition. |
+| `find` | string | no | `""` | JavaScript regular expression, run on the decoded parameter name or value. It is not anchored, so use `^` and `$` for an exact match. Empty means no condition. |
 | `replace` | string | no | none | Replacement text for every match, with the `String.replace` patterns (`$1`, `$<name>`, `$&`, `` $` ``, `$'`, `$$`). Without `replace` the pattern only filters. An empty string deletes the matched text. |
 
 ### How `replace` works
 
-- A parameter is changed only when every non-empty `find` matches. An empty name pattern therefore means any parameter.
+- A parameter is changed only when every non-empty `find` matches. An empty or missing `parameter` pattern therefore means any parameter.
 - A parameter without a value (`fbclid`) never matches a value pattern.
-- The name and the value are each replaced from their original text, not from each other's result. For independent name and value replacements use two actions.
+- The parameter name and the value are each replaced from their original text, not from each other's result. For independent parameter name and value replacements use two actions.
 - A rename that would give an empty name is ignored.
-- A changed name or value is re-encoded; everything else in the URL keeps its original bytes.
+- A changed parameter name or value is re-encoded; everything else in the URL keeps its original bytes.
 - An invalid regular expression disables the whole action.
 
 ## Validation
@@ -95,7 +95,7 @@ At least one of `name` and `value` needs a non-empty `find`.
 
 | Severity | Cases |
 |---|---|
-| error | no or unknown scope `type`; missing or invalid `host`; `path` containing `?` or `#`; unknown action `type`; empty `param` in `remove`; `replace` with no non-empty `find`; invalid regular expression; non-text `find` or `replace` |
+| error | no or unknown scope `type`; missing or invalid `host`; `path` containing `?` or `#`; unknown action `type`; empty `parameter` in `remove`; `replace` with no non-empty `find`; invalid regular expression; non-text `find` or `replace` |
 | warning | no actions; `replace` that replaces nothing (no pattern has `replace`); `replace` set on a pattern without `find` |
 
 A rule with errors stays in storage so it can be fixed, but is not applied.
@@ -114,10 +114,10 @@ A rule with only warnings is applied.
       "name": "GitHub visibility",
       "scope": { "type": "host", "host": "github.com", "subdomains": true, "path": "/new" },
       "actions": [
-        { "type": "remove", "param": "utm_*" },
+        { "type": "remove", "parameter": "utm_*" },
         {
           "type": "replace",
-          "name": { "find": "^visibility$" },
+          "parameter": { "find": "^visibility$" },
           "value": { "find": "^public$", "replace": "private" },
           "ignoreCase": false
         }

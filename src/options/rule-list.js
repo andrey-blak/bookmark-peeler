@@ -25,6 +25,19 @@ export function dropIndex(from, over, after) {
   return from < to ? to - 1 : to;
 }
 
+/**
+ * Saves a rule from the editor: replaces the rule with the same id, or appends a new one.
+ * The stored `enabled` state is kept, because the editor does not change it.
+ */
+export function upsertRule(rules, rule) {
+  const index = rules.findIndex(existing => existing.id === rule.id);
+  if (index < 0) return { rules: [...rules, rule], index: rules.length };
+
+  const result = [...rules];
+  result[index] = { ...rule, enabled: rules[index].enabled };
+  return { rules: result, index };
+}
+
 /** Returns the remaining rules and what was removed ({ rule, index }, or null), for restoreRule. */
 export function removeRule(rules, index) {
   const result = [...rules];

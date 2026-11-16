@@ -4,12 +4,12 @@
 
 - Firefox, Manifest V3, minimum Firefox 112 (ES modules in the background page).
 - Pure logic lives in `src/core/` as ES modules without browser APIs, so it is unit-tested with `node:test`.
-- Rules scope: all sites, or a domain (subdomains optional, on by default), optionally with a path. A path without wildcards matches exactly; `*` matches anything except `/`, `**` matches anything including `/`. A trailing slash is ignored. `/a/**` does not match `/a` itself. Paths are matched case-sensitively, after percent-decoding; port, query and fragment are ignored.
-- Rule actions: remove a parameter (exact name or `*` wildcard, matched case-sensitively like on the server, against the decoded name), or replace in a parameter's name and/or value with a regex.
+- Rules scope: all sites, or a domain (subdomains optional, on by default), optionally with a path. A path without wildcards matches exactly; `*` matches anything except `/`, `**` matches anything including `/`. A trailing slash is ignored, and the leading slash is optional. `/a/**` does not match `/a` itself. The domain is a plain name: wildcards and regular expressions are rejected (the Subdomains option covers subdomains); wildcards can be added later if needed. Paths are matched case-sensitively, after percent-decoding; port, query and fragment are ignored.
+- Rule actions: remove a parameter (exact name or `*` wildcard, matched case-sensitively like on the server, against the decoded name), or replace in a parameter's name and/or value with a regex (the `parameter` and `value` patterns of the action).
   - The regex runs on the decoded text and replaces every match; a changed part is re-encoded, the other part keeps its raw text.
-  - A parameter qualifies when every non-empty pattern matches, so an empty name pattern means any parameter and a pattern without `replace` only filters.
+  - A parameter qualifies when every non-empty pattern matches, so an empty parameter pattern means any parameter and a pattern without `replace` only filters.
   - Case-sensitive by default (`ignoreCase: false`); an invalid regex disables the action.
-  - Two different name and value replacements that must apply independently need two actions.
+  - Two different parameter name and value replacements that must apply independently need two actions.
 - Query strings are parsed raw: untouched parameters keep their exact original bytes.
 - The engine (`cleanUrl`) runs rules and their actions in list order, each seeing the previous result. Only `http:` and `https:` URLs are touched, and only their query: when every parameter is removed the `?` goes too, and the fragment is kept.
 - Rules and settings are stored in `storage.local` as `schemaVersion`, `settings` and `rules` (see [storage.md](storage.md)). The stage-0 prototype format is not migrated: it was a draft, and it used a different add-on id, so its storage is not visible to this add-on.
@@ -20,10 +20,16 @@
 - The main page (the rules; not to be confused with settings) opens in its own tab, from the toolbar button and from the add-ons manager. In the code it is still the manifest's `options_ui` and `src/options/`. Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
   - The list's switch, reorder and delete save at once. Deleting shows an Undo for the last deleted rule, for 8 seconds.
   - The editor works on a copy with Save and Revert, so a rule can be tried before it is saved.
-  - Keyboard: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete (not while typing in a field). Dragging a rule also reorders. The page does not print these shortcuts; they are documented in [development.md](development.md).
+  - Keyboard: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete (not while typing in a field). Dragging a rule also reorders. The page does not print these shortcuts; they are documented in [tests.md](tests.md).
   - A new rule starts as an unsaved draft: scope Domain, empty domain, no actions. Errors and warnings are shown only after the user has typed something.
   - In the replace action the pattern fields are labelled "Parameter" and "Value", and there is one "Case sensitive" checkbox, on by default.
   - Import and export buttons do not go into the rule list's sidebar; their place is decided in step 11.
+  - Ctrl+S saves the rule in the editor (also while typing in a field).
+  - Selecting another rule, adding one or duplicating while the editor has unsaved changes asks "Save", "Discard" or "Cancel". Closing the tab with unsaved changes shows the browser's warning.
+  - Save always works: a rule with errors is stored but not applied, and the editor says so. Revert goes back to the stored version; for a new rule it clears the form.
+  - Duplicate creates an unsaved draft named "<name> copy".
+  - Add action is a menu with "Remove parameter" and "Replace in parameter or value". Actions are not reorderable yet.
+  - The Domain field's placeholder is `example.com`.
 
 ## Steps
 
@@ -31,12 +37,13 @@
 1. Raw query parser with byte-preserving round trip. (done)
 2. Scope matching: all, domain, domain + path or path pattern. (done)
 3. Remove-parameter action. (done)
-4. Regex replace action (name and value). (done)
+4. Regex replace action (parameter and value). (done)
 5. `cleanUrl` engine: rule order, several rules per URL. (done)
 6. Storage schema and validation. (done)
 7. Background wiring on `bookmarks.onCreated`. (done)
-8. Main page: rule list (enable, delete with undo, reorder by drag and keyboard), toolbar button opens the page. Rules cannot be added yet, so they are put into storage by hand, see [development.md](development.md). (done; checked manually in Firefox)
-9. Main page: rule editor with the Add rule button, Save and Revert.
+8. Main page: rule list (enable, delete with undo, reorder by drag and keyboard), toolbar button opens the page. Rules cannot be added yet, so they are put into storage by hand, see [tests.md](tests.md). (done; checked manually in Firefox)
+9. Main page: rule editor with the Add rule button, Save (Ctrl+S) and Revert, Duplicate, validation messages, and the unsaved changes prompt. (done; checked manually in Firefox, except the two fixes made after the check: the Add action menu and the messages shown on opening a stored rule)
+9a. Refactoring: the replace action's `name` field and the remove action's `param` field are now both `parameter`, and `param`/`params` in the code are `parameter`/`parameters`, so a rule's own `name` is not confused with a parameter. Rules saved with the old fields lose their parameter filter or their remove action and have to be created again; nothing has been released yet, so there is no migration.
 10. Main page: live URL tester.
 11. Import / export (placed outside the rule list), presets.
 12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
@@ -44,5 +51,7 @@
     - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.
     - On conflict the server's value wins per key, so changes from `onChanged` have to be merged.
 14. Optional: empty state on first run, a short invitation with an Add rule button (and the presets once they exist).
-15. Optional: settings for the keyboard shortcuts (now Ctrl+Up, Ctrl+Down, Delete, Ctrl+Z) and for how long Undo stays available, in seconds (now 8).
-16. Optional proper icons: delete button.
+15. Optional: settings for the keyboard shortcuts (now Ctrl+Up, Ctrl+Down, Delete, Ctrl+Z, Ctrl+S) and for how long Undo stays available, in seconds (now 8).
+16. Optional proper icons: delete, add.
+17. Optional: reorder the actions of a rule.
+18. Optional: keep only the specified parameters (an allowlist), removing all the others.

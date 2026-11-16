@@ -8,7 +8,7 @@ const CLEAN = "https://www.youtube.com/watch?v=KAq7MwkoFR8";
 const removePp = {
   id: "yt",
   scope: { type: "host", host: "youtube.com" },
-  actions: [{ type: "remove", param: "pp" }],
+  actions: [{ type: "remove", parameter: "pp" }],
 };
 
 const config = (rules) => ({ schemaVersion: 1, settings: { cleanOnEdit: false }, rules });
@@ -67,7 +67,7 @@ describe("handleBookmarkCreated", () => {
   });
 
   test("a rule with errors is skipped while the valid rules still apply", async () => {
-    const broken = { id: "bad", scope: { type: "host", host: "" }, actions: [{ type: "remove", param: "v" }] };
+    const broken = { id: "bad", scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "v" }] };
     const { deps, calls } = setup(config([broken, removePp]));
     await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
     assert.deepEqual(calls.updates, [["b1", { url: CLEAN }]]);
@@ -87,7 +87,7 @@ describe("handleBookmarkCreated", () => {
   });
 
   test("bookmarks that are not web pages are not touched", async () => {
-    const rule = { id: "all", scope: { type: "all" }, actions: [{ type: "remove", param: "*" }] };
+    const rule = { id: "all", scope: { type: "all" }, actions: [{ type: "remove", parameter: "*" }] };
     const { deps, calls } = setup(config([rule]));
     await handleBookmarkCreated({ id: "b1", url: "place:sort=8&maxResults=10" }, deps);
     await handleBookmarkCreated({ id: "b2", url: "about:reader?url=x" }, deps);

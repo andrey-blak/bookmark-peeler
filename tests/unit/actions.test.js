@@ -58,65 +58,65 @@ describe("nameMatches", () => {
 describe("applyAction: remove", () => {
   test("removes the named parameter and leaves the rest byte-identical", () => {
     assert.equal(
-      run({ type: "remove", param: "pp" }, "q=hello%20world&pp=x&t=a~b&r=a+b"),
+      run({ type: "remove", parameter: "pp" }, "q=hello%20world&pp=x&t=a~b&r=a+b"),
       "q=hello%20world&t=a~b&r=a+b",
     );
   });
 
   test("removes every occurrence of a repeated parameter", () => {
-    assert.equal(run({ type: "remove", param: "a" }, "a=1&b=2&a=3"), "b=2");
+    assert.equal(run({ type: "remove", parameter: "a" }, "a=1&b=2&a=3"), "b=2");
   });
 
   test("does nothing when the parameter is absent", () => {
-    assert.equal(run({ type: "remove", param: "zz" }, "a=1&b=2"), "a=1&b=2");
+    assert.equal(run({ type: "remove", parameter: "zz" }, "a=1&b=2"), "a=1&b=2");
   });
 
   test("an exact name does not remove longer names", () => {
-    assert.equal(run({ type: "remove", param: "utm" }, "utm_source=x&utm=y"), "utm_source=x");
+    assert.equal(run({ type: "remove", parameter: "utm" }, "utm_source=x&utm=y"), "utm_source=x");
   });
 
   test("is case-sensitive", () => {
-    assert.equal(run({ type: "remove", param: "pp" }, "PP=1&pp=2"), "PP=1");
+    assert.equal(run({ type: "remove", parameter: "pp" }, "PP=1&pp=2"), "PP=1");
   });
 
   test("removes parameters matching a wildcard", () => {
     assert.equal(
-      run({ type: "remove", param: "utm_*" }, "v=1&utm_source=a&utm_medium=b&xutm_source=c"),
+      run({ type: "remove", parameter: "utm_*" }, "v=1&utm_source=a&utm_medium=b&xutm_source=c"),
       "v=1&xutm_source=c",
     );
   });
 
   test("* removes every parameter", () => {
-    assert.equal(run({ type: "remove", param: "*" }, "a=1&b=2"), "");
+    assert.equal(run({ type: "remove", parameter: "*" }, "a=1&b=2"), "");
   });
 
   test("matches the decoded name", () => {
-    assert.equal(run({ type: "remove", param: "a b" }, "a%20b=1&c=2"), "c=2");
-    assert.equal(run({ type: "remove", param: "utm_source" }, "utm%5Fsource=1&c=2"), "c=2");
-    assert.equal(run({ type: "remove", param: "a b" }, "a+b=1&c=2"), "c=2");
+    assert.equal(run({ type: "remove", parameter: "a b" }, "a%20b=1&c=2"), "c=2");
+    assert.equal(run({ type: "remove", parameter: "utm_source" }, "utm%5Fsource=1&c=2"), "c=2");
+    assert.equal(run({ type: "remove", parameter: "a b" }, "a+b=1&c=2"), "c=2");
   });
 
   test("removes a parameter that has no value", () => {
-    assert.equal(run({ type: "remove", param: "fbclid" }, "a=1&fbclid&b=2"), "a=1&b=2");
-    assert.equal(run({ type: "remove", param: "fbclid" }, "a=1&fbclid="), "a=1");
+    assert.equal(run({ type: "remove", parameter: "fbclid" }, "a=1&fbclid&b=2"), "a=1&b=2");
+    assert.equal(run({ type: "remove", parameter: "fbclid" }, "a=1&fbclid="), "a=1");
   });
 
-  test("an empty or missing param removes nothing", () => {
-    assert.equal(run({ type: "remove", param: "" }, "a=1&&b=2"), "a=1&&b=2");
+  test("an empty or missing parameter removes nothing", () => {
+    assert.equal(run({ type: "remove", parameter: "" }, "a=1&&b=2"), "a=1&&b=2");
     assert.equal(run({ type: "remove" }, "a=1&b=2"), "a=1&b=2");
   });
 
   test("does not modify the input array", () => {
-    const params = parseQuery("a=1&pp=2");
-    applyAction({ type: "remove", param: "pp" }, params);
-    assert.equal(serializeQuery(params), "a=1&pp=2");
+    const parameters = parseQuery("a=1&pp=2");
+    applyAction({ type: "remove", parameter: "pp" }, parameters);
+    assert.equal(serializeQuery(parameters), "a=1&pp=2");
   });
 
   test("the example from the task: pp removed from a YouTube URL", () => {
     const { base, query, fragment } = splitUrl(
       "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D",
     );
-    const cleaned = serializeQuery(applyAction({ type: "remove", param: "pp" }, parseQuery(query)));
+    const cleaned = serializeQuery(applyAction({ type: "remove", parameter: "pp" }, parseQuery(query)));
     assert.equal(
       joinUrl({ base, query: cleaned, fragment }),
       "https://www.youtube.com/watch?v=KAq7MwkoFR8",
@@ -126,7 +126,7 @@ describe("applyAction: remove", () => {
 
 describe("applyAction: other input", () => {
   test("an unknown action type changes nothing", () => {
-    assert.equal(run({ type: "explode", param: "a" }, "a=1&b=2"), "a=1&b=2");
+    assert.equal(run({ type: "explode", parameter: "a" }, "a=1&b=2"), "a=1&b=2");
   });
 
   test("a missing action changes nothing", () => {

@@ -14,7 +14,8 @@
 
 /** Lower-cased ASCII (punycode) host name, or null when the text cannot be a plain host name. */
 export function normalizeHost(host) {
-  if (typeof host !== "string" || host === "" || /[\/?#@:\s]/.test(host)) return null;
+  // No wildcards: "*" would be accepted by the URL parser but can never match a real host.
+  if (typeof host !== "string" || host === "" || /[\/?#@:*\s]/.test(host)) return null;
 
   try {
     return new URL("http://" + host).hostname || null;

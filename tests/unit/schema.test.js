@@ -19,10 +19,10 @@ const goodRule = () => ({
   name: "GitHub visibility",
   scope: { type: "host", host: "github.com", subdomains: true, path: "/new" },
   actions: [
-    { type: "remove", param: "utm_*" },
+    { type: "remove", parameter: "utm_*" },
     {
       type: "replace",
-      name: { find: "^visibility$" },
+      parameter: { find: "^visibility$" },
       value: { find: "^public$", replace: "private" },
       ignoreCase: false,
     },
@@ -88,11 +88,11 @@ describe("normalizeRule", () => {
       ...goodRule(),
       extra: 1,
       scope: { type: "all", host: "ignored.com", extra: 1 },
-      actions: [{ type: "remove", param: "a", extra: 1 }],
+      actions: [{ type: "remove", parameter: "a", extra: 1 }],
     });
     assert.equal("extra" in rule, false);
     assert.deepEqual(rule.scope, { type: "all" });
-    assert.deepEqual(rule.actions, [{ type: "remove", param: "a" }]);
+    assert.deepEqual(rule.actions, [{ type: "remove", parameter: "a" }]);
   });
 
   test("a replace action gets ignoreCase false and keeps only the parts it has", () => {
@@ -104,9 +104,9 @@ describe("normalizeRule", () => {
 
   test("a part without replace stays a filter; an empty replace is kept", () => {
     const { actions } = normalizeRule({
-      actions: [{ type: "replace", name: { find: "a" }, value: { find: "b", replace: "" } }],
+      actions: [{ type: "replace", parameter: { find: "a" }, value: { find: "b", replace: "" } }],
     });
-    assert.equal("replace" in actions[0].name, false);
+    assert.equal("replace" in actions[0].parameter, false);
     assert.equal(actions[0].value.replace, "");
   });
 
@@ -118,7 +118,7 @@ describe("normalizeRule", () => {
   });
 
   test("is idempotent", () => {
-    const once = normalizeRule({ scope: { type: "host", host: "a.com" }, actions: [{ type: "remove", param: "x" }] });
+    const once = normalizeRule({ scope: { type: "host", host: "a.com" }, actions: [{ type: "remove", parameter: "x" }] });
     assert.deepEqual(normalizeRule(once), once);
   });
 });
@@ -199,7 +199,7 @@ describe("validateRule: scope", () => {
   });
 
   test("all sites needs nothing else", () => {
-    assert.deepEqual(validateRule({ scope: { type: "all" }, actions: [{ type: "remove", param: "a" }] }), []);
+    assert.deepEqual(validateRule({ scope: { type: "all" }, actions: [{ type: "remove", parameter: "a" }] }), []);
   });
 
   test("the scope type must be known", () => {
@@ -224,6 +224,16 @@ describe("validateRule: scope", () => {
     for (const host of ["youtube.com", "WWW.Example.org", "127.0.0.1", "localhost", "пример.рф"]) {
       const rule = { ...goodRule(), scope: { type: "host", host } };
       assert.equal(find(validateRule(rule), "scope.host"), undefined, host);
+    }
+  });
+
+  test("wildcards in the domain are rejected, with a message that points to the Subdomains option", () => {
+    for (const host of ["*.youtube.com", "youtube.*", "*"]) {
+      const rule = { ...goodRule(), scope: { type: "host", host } };
+      const issue = find(validateRule(rule), "scope.host");
+      assert.equal(issue?.severity, "error", host);
+      assert.match(issue.message, /wildcard/i);
+      assert.match(issue.message, /subdomains/i);
     }
   });
 
@@ -258,27 +268,27 @@ describe("validateRule: actions", () => {
   });
 
   test("remove needs a parameter name", () => {
-    assert.equal(find(validateRule(withAction({ type: "remove", param: "" })), "actions.0.param").severity, "error");
-    assert.equal(find(validateRule(withAction({ type: "remove" })), "actions.0.param").severity, "error");
-    assert.deepEqual(validateRule(withAction({ type: "remove", param: "utm_*" })), []);
+    assert.equal(find(validateRule(withAction({ type: "remove", parameter: "" })), "actions.0.parameter").severity, "error");
+    assert.equal(find(validateRule(withAction({ type: "remove" })), "actions.0.parameter").severity, "error");
+    assert.deepEqual(validateRule(withAction({ type: "remove", parameter: "utm_*" })), []);
   });
 
   test("replace needs a name or value pattern", () => {
     const issues = validateRule(withAction({ type: "replace" }));
     assert.equal(find(issues, "actions.0").severity, "error");
-    assert.equal(find(validateRule(withAction({ type: "replace", name: { find: "" }, value: { find: "" } })), "actions.0").severity, "error");
+    assert.equal(find(validateRule(withAction({ type: "replace", parameter: { find: "" }, value: { find: "" } })), "actions.0").severity, "error");
   });
 
   test("an invalid regex is an error on that field and names the problem", () => {
-    const name = validateRule(withAction({ type: "replace", name: { find: "[", replace: "x" } }));
+    const parameter = validateRule(withAction({ type: "replace", parameter: { find: "[", replace: "x" } }));
     const value = validateRule(withAction({ type: "replace", value: { find: "(", replace: "x" } }));
-    assert.equal(find(name, "actions.0.name.find").severity, "error");
+    assert.equal(find(parameter, "actions.0.parameter.find").severity, "error");
     assert.equal(find(value, "actions.0.value.find").severity, "error");
     assert.match(find(value, "actions.0.value.find").message, /regular expression/i);
   });
 
   test("patterns that only filter, with nothing to replace, give a warning", () => {
-    const issues = validateRule(withAction({ type: "replace", name: { find: "^a$" }, value: { find: "^1$" } }));
+    const issues = validateRule(withAction({ type: "replace", parameter: { find: "^a$" }, value: { find: "^1$" } }));
     assert.equal(find(issues, "actions.0").severity, "warning");
     assert.equal(hasErrors(issues), false);
   });
@@ -286,10 +296,10 @@ describe("validateRule: actions", () => {
   test("a replacement without a pattern gives a warning on that pattern", () => {
     const issues = validateRule(withAction({
       type: "replace",
-      name: { find: "", replace: "x" },
+      parameter: { find: "", replace: "x" },
       value: { find: "^1$", replace: "2" },
     }));
-    assert.equal(find(issues, "actions.0.name.find").severity, "warning");
+    assert.equal(find(issues, "actions.0.parameter.find").severity, "warning");
     assert.equal(hasErrors(issues), false);
   });
 
@@ -298,7 +308,7 @@ describe("validateRule: actions", () => {
   });
 
   test("issues carry a message", () => {
-    const issues = validateRule({ scope: { type: "host", host: "" }, actions: [{ type: "remove", param: "" }] });
+    const issues = validateRule({ scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "" }] });
     assert.equal(issues.length, 2);
     for (const issue of issues) assert.ok(issue.message.length > 0);
   });
@@ -306,9 +316,9 @@ describe("validateRule: actions", () => {
   test("every action is checked, not only the first", () => {
     const issues = validateRule({
       scope: { type: "all" },
-      actions: [{ type: "remove", param: "a" }, { type: "remove", param: "" }, { type: "explode" }],
+      actions: [{ type: "remove", parameter: "a" }, { type: "remove", parameter: "" }, { type: "explode" }],
     });
-    assert.ok(find(issues, "actions.1.param"));
+    assert.ok(find(issues, "actions.1.parameter"));
     assert.ok(find(issues, "actions.2.type"));
   });
 });
