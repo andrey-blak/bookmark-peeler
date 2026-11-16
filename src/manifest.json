@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Peeler",
+  "version": "0.0.1",
+  "description": "Automatically removes or rewrites URL parameters when a bookmark is saved, using configurable rules.",
+  "icons": {
+    "48": "icons/icon.svg",
+    "96": "icons/icon.svg"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bookmark-peeler@andrey.blak",
+      "strict_min_version": "112.0"
+    }
+  }
+}

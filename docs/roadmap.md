@@ -1,0 +1,27 @@
+# Roadmap and decisions
+
+## Decisions
+
+- Firefox, Manifest V3, minimum Firefox 112 (ES modules in the background page).
+- Pure logic lives in `src/core/` as ES modules without browser APIs, so it is unit-tested with `node:test`.
+- Rules scope: all sites, or a domain (subdomains optional, on by default), optionally with a path. A path without wildcards matches exactly; `*` matches anything except `/`, `**` matches anything including `/`. A trailing slash is ignored.
+- Rule actions: remove a parameter (exact name or wildcard), or replace a parameter name and/or value with regex (name and value patterns are independent).
+- Query strings are parsed raw: untouched parameters keep their exact original bytes.
+- Only newly created bookmarks are cleaned at first. Later: optional cleaning on edit. Import and sync are not separate options: `bookmarks.onCreated` also fires for them, to be confirmed by testing.
+- Options page opens in its own tab (toolbar button and the add-ons manager). Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
+
+## Steps
+
+1. Raw query parser with byte-preserving round trip.
+0. Skeleton: layout, build script, local Node, test runner, docs. (done)
+2. Scope matching: all, domain, domain + path or path pattern.
+3. Remove-parameter action.
+4. Regex replace action (name and value).
+5. `cleanUrl` engine: rule order, several rules per URL.
+6. Storage schema, validation, migration of the prototype format.
+7. Background wiring on `bookmarks.onCreated`.
+8. Options: rule list (enable, delete, reorder), toolbar button opens the page.
+9. Options: rule editor.
+10. Options: live URL tester.
+11. Import / export, presets.
+12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
