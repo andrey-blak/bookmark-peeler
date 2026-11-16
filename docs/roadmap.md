@@ -12,8 +12,8 @@
 
 ## Steps
 
-1. Raw query parser with byte-preserving round trip.
 0. Skeleton: layout, build script, local Node, test runner, docs. (done)
+1. Raw query parser with byte-preserving round trip. (done)
 2. Scope matching: all, domain, domain + path or path pattern.
 3. Remove-parameter action.
 4. Regex replace action (name and value).
