@@ -8,6 +8,10 @@ const deps = {
   updateBookmark: (id, changes) => browser.bookmarks.update(id, changes),
 };
 
+browser.action.onClicked.addListener(() => {
+  browser.runtime.openOptionsPage();
+});
+
 browser.bookmarks.onCreated.addListener((id, bookmark) => {
   handleBookmarkCreated(bookmark, deps).catch(error => {
     console.error("Bookmark Peeler:", error);

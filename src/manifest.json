@@ -17,6 +17,13 @@
     ],
     "type": "module"
   },
+  "action": {
+    "default_title": "Bookmark Peeler"
+  },
+  "options_ui": {
+    "page": "options/index.html",
+    "open_in_tab": true
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "bookmark-peeler@andrey.blak",

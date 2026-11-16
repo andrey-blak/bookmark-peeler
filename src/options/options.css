@@ -1,0 +1,215 @@
+/* System colours and fonts, light and dark; the only fixed colours are the error and warning marks. */
+
+:root {
+  color-scheme: light dark;
+  --line: rgba(128, 128, 128, 0.35);
+  --danger: #d70022;
+  --warning: #a85400;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --danger: #ff7a85;
+    --warning: #ffb340;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: menu;
+  background: Canvas;
+  color: CanvasText;
+}
+
+header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 24px;
+  padding: 16px 24px;
+}
+
+@media (max-width: 700px) {
+  main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.placeholder {
+  color: GrayText;
+}
+
+.notice {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+}
+
+/* Rule list */
+
+.rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.rules:empty {
+  display: none;
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  border-inline-start: 3px solid transparent;
+}
+
+.rule:last-child {
+  border-bottom: 0;
+}
+
+.rule.selected {
+  background: rgba(128, 128, 128, 0.18);
+  border-inline-start-color: AccentColor;
+}
+
+.rule.disabled .main {
+  color: GrayText;
+}
+
+.rule.dragging {
+  opacity: 0.4;
+}
+
+.rule.drop-before {
+  box-shadow: 0 -2px 0 AccentColor;
+}
+
+.rule.drop-after {
+  box-shadow: 0 2px 0 AccentColor;
+}
+
+.grip {
+  color: GrayText;
+  cursor: grab;
+  user-select: none;
+}
+
+.rule input[type="checkbox"] {
+  flex: none;
+  margin: 0;
+  accent-color: AccentColor;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.title,
+.subtitle {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  color: GrayText;
+  font-size: 0.85em;
+}
+
+.rule button:focus-visible,
+.rule input:focus-visible,
+.toast button:focus-visible {
+  outline: 2px solid AccentColor;
+  outline-offset: 1px;
+}
+
+.status {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+.status[data-status="error"] {
+  color: var(--danger);
+}
+
+.status[data-status="warning"] {
+  color: var(--warning);
+}
+
+.status[data-status="error"]::before {
+  content: "!";
+}
+
+.status[data-status="warning"]::before {
+  content: "?";
+}
+
+.delete {
+  flex: none;
+  min-width: 28px;
+}
+
+/* Undo message */
+
+.toast {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: CanvasText;
+  color: Canvas;
+}
+
+.toast[hidden] {
+  display: none;
+}

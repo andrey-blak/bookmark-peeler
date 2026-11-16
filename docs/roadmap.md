@@ -17,7 +17,13 @@
   - Storage with a schema version newer than the code knows is never read or overwritten.
 - A new bookmark is cleaned by updating its URL right after `bookmarks.onCreated`. Rules are read from storage for every bookmark; failures are logged to the add-on console, and successes are not logged.
 - Only newly created bookmarks are cleaned at first. Later: optional cleaning on edit. Import and sync are not separate options: `bookmarks.onCreated` also fires for them, to be confirmed by testing.
-- Options page opens in its own tab (toolbar button and the add-ons manager). Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
+- The main page (the rules; not to be confused with settings) opens in its own tab, from the toolbar button and from the add-ons manager. In the code it is still the manifest's `options_ui` and `src/options/`. Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
+  - The list's switch, reorder and delete save at once. Deleting shows an Undo for the last deleted rule, for 8 seconds.
+  - The editor works on a copy with Save and Revert, so a rule can be tried before it is saved.
+  - Keyboard: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete (not while typing in a field). Dragging a rule also reorders. The page does not print these shortcuts; they are documented in [development.md](development.md).
+  - A new rule starts as an unsaved draft: scope Domain, empty domain, no actions. Errors and warnings are shown only after the user has typed something.
+  - In the replace action the pattern fields are labelled "Parameter" and "Value", and there is one "Case sensitive" checkbox, on by default.
+  - Import and export buttons do not go into the rule list's sidebar; their place is decided in step 11.
 
 ## Steps
 
@@ -29,11 +35,14 @@
 5. `cleanUrl` engine: rule order, several rules per URL. (done)
 6. Storage schema and validation. (done)
 7. Background wiring on `bookmarks.onCreated`. (done)
-8. Options: rule list (enable, delete, reorder), toolbar button opens the page.
-9. Options: rule editor.
-10. Options: live URL tester.
-11. Import / export, presets.
+8. Main page: rule list (enable, delete with undo, reorder by drag and keyboard), toolbar button opens the page. Rules cannot be added yet, so they are put into storage by hand, see [development.md](development.md). (done; checked manually in Firefox)
+9. Main page: rule editor with the Add rule button, Save and Revert.
+10. Main page: live URL tester.
+11. Import / export (placed outside the rule list), presets.
 12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
 13. Optional: sync rules between devices with `storage.sync`.
     - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.
     - On conflict the server's value wins per key, so changes from `onChanged` have to be merged.
+14. Optional: empty state on first run, a short invitation with an Add rule button (and the presets once they exist).
+15. Optional: settings for the keyboard shortcuts (now Ctrl+Up, Ctrl+Down, Delete, Ctrl+Z) and for how long Undo stays available, in seconds (now 8).
+16. Optional proper icons: delete button.

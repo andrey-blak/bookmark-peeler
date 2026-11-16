@@ -36,6 +36,16 @@ test("the background page is an ES module script that exists", () => {
   }
 });
 
+test("the options page opens in its own tab and exists", () => {
+  assert.equal(manifest.options_ui.open_in_tab, true);
+  assert.ok(existsSync(new URL(manifest.options_ui.page, srcDir)), `missing ${manifest.options_ui.page}`);
+});
+
+test("the toolbar button exists and has no popup, so a click can open the options page", () => {
+  assert.ok(manifest.action, "missing action");
+  assert.equal(manifest.action.default_popup, undefined);
+});
+
 test("every icon referenced by the manifest exists", () => {
   for (const path of Object.values(manifest.icons ?? {})) {
     assert.ok(existsSync(new URL(path, srcDir)), `missing icon ${path}`);

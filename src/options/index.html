@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmark Peeler</title>
+  <link rel="stylesheet" href="options.css">
+  <script type="module" src="index.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Bookmark Peeler</h1>
+  </header>
+
+  <main>
+    <section class="sidebar" aria-labelledby="rules-heading">
+      <h2 id="rules-heading">Rules</h2>
+      <p id="notice" class="notice" role="alert" hidden></p>
+      <ul id="rules" class="rules" aria-label="Rules"></ul>
+    </section>
+
+    <section class="editor" aria-label="Rule editor">
+      <p class="placeholder">The rule editor is not available yet.</p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden>
+    <span id="toast-text"></span>
+    <button id="toast-undo" type="button" title="Ctrl+Z">Undo</button>
+  </div>
+</body>
+</html>
