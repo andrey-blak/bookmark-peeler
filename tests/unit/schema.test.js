@@ -1,0 +1,334 @@
+import { test, describe } from "node:test";
+import assert from "node:assert/strict";
+import {
+  SCHEMA_VERSION,
+  defaultConfig,
+  normalizeRule,
+  normalizeConfig,
+  readConfig,
+  validateRule,
+  hasErrors,
+  usableRules,
+} from "../../src/core/schema.js";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+const goodRule = () => ({
+  id: "r1",
+  enabled: true,
+  name: "GitHub visibility",
+  scope: { type: "host", host: "github.com", subdomains: true, path: "/new" },
+  actions: [
+    { type: "remove", param: "utm_*" },
+    {
+      type: "replace",
+      name: { find: "^visibility$" },
+      value: { find: "^public$", replace: "private" },
+      ignoreCase: false,
+    },
+  ],
+});
+
+const find = (issues, path) => issues.find(i => i.path.join(".") === path);
+
+describe("defaultConfig", () => {
+  test("is an empty, versioned config with cleanOnEdit off", () => {
+    assert.deepEqual(defaultConfig(), {
+      schemaVersion: SCHEMA_VERSION,
+      settings: { cleanOnEdit: false },
+      rules: [],
+    });
+  });
+
+  test("returns a fresh object each time", () => {
+    assert.notEqual(defaultConfig(), defaultConfig());
+    assert.notEqual(defaultConfig().rules, defaultConfig().rules);
+  });
+});
+
+describe("normalizeRule", () => {
+  test("keeps a good rule as it is", () => {
+    assert.deepEqual(normalizeRule(goodRule()), goodRule());
+  });
+
+  test("fills in defaults", () => {
+    const rule = normalizeRule({ scope: { type: "host", host: "a.com" }, actions: [] });
+    assert.match(rule.id, UUID);
+    assert.equal(rule.enabled, true);
+    assert.equal(rule.scope.subdomains, true);
+    assert.equal("name" in rule, false);
+    assert.equal("path" in rule.scope, false);
+  });
+
+  test("only enabled: false switches a rule off", () => {
+    assert.equal(normalizeRule({ enabled: false }).enabled, false);
+    assert.equal(normalizeRule({ enabled: 0 }).enabled, true);
+    assert.equal(normalizeRule({}).enabled, true);
+  });
+
+  test("an empty name is dropped, a real one is kept", () => {
+    assert.equal("name" in normalizeRule({ name: "  " }), false);
+    assert.equal(normalizeRule({ name: "YouTube" }).name, "YouTube");
+    assert.equal("name" in normalizeRule({ name: 5 }), false);
+  });
+
+  test("an empty path is dropped, the host is trimmed", () => {
+    const { scope } = normalizeRule({ scope: { type: "host", host: " a.com ", path: "" } });
+    assert.equal(scope.host, "a.com");
+    assert.equal("path" in scope, false);
+  });
+
+  test("subdomains: false is kept, anything else means true", () => {
+    assert.equal(normalizeRule({ scope: { type: "host", host: "a.com", subdomains: false } }).scope.subdomains, false);
+    assert.equal(normalizeRule({ scope: { type: "host", host: "a.com", subdomains: "no" } }).scope.subdomains, true);
+  });
+
+  test("unknown fields are dropped everywhere", () => {
+    const rule = normalizeRule({
+      ...goodRule(),
+      extra: 1,
+      scope: { type: "all", host: "ignored.com", extra: 1 },
+      actions: [{ type: "remove", param: "a", extra: 1 }],
+    });
+    assert.equal("extra" in rule, false);
+    assert.deepEqual(rule.scope, { type: "all" });
+    assert.deepEqual(rule.actions, [{ type: "remove", param: "a" }]);
+  });
+
+  test("a replace action gets ignoreCase false and keeps only the parts it has", () => {
+    const { actions } = normalizeRule({
+      actions: [{ type: "replace", value: { find: "x", replace: "y" } }],
+    });
+    assert.deepEqual(actions, [{ type: "replace", value: { find: "x", replace: "y" }, ignoreCase: false }]);
+  });
+
+  test("a part without replace stays a filter; an empty replace is kept", () => {
+    const { actions } = normalizeRule({
+      actions: [{ type: "replace", name: { find: "a" }, value: { find: "b", replace: "" } }],
+    });
+    assert.equal("replace" in actions[0].name, false);
+    assert.equal(actions[0].value.replace, "");
+  });
+
+  test("garbage does not throw and does not turn into something valid", () => {
+    for (const raw of [undefined, null, 5, "x", [], { scope: 5, actions: 5 }, { actions: [null, 5, "x", {}] }]) {
+      const rule = normalizeRule(raw);
+      assert.equal(hasErrors(validateRule(rule)), true, JSON.stringify(raw));
+    }
+  });
+
+  test("is idempotent", () => {
+    const once = normalizeRule({ scope: { type: "host", host: "a.com" }, actions: [{ type: "remove", param: "x" }] });
+    assert.deepEqual(normalizeRule(once), once);
+  });
+});
+
+describe("normalizeConfig", () => {
+  test("always carries the current schema version", () => {
+    assert.equal(normalizeConfig({ schemaVersion: 99 }).schemaVersion, SCHEMA_VERSION);
+  });
+
+  test("keeps good settings and rules", () => {
+    const config = { schemaVersion: SCHEMA_VERSION, settings: { cleanOnEdit: true }, rules: [goodRule()] };
+    assert.deepEqual(normalizeConfig(config), config);
+  });
+
+  test("settings default to off and unknown settings are dropped", () => {
+    assert.deepEqual(normalizeConfig({ settings: { cleanOnEdit: "yes", other: 1 } }).settings, { cleanOnEdit: false });
+    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false });
+  });
+
+  test("rules that are not objects are dropped, and a missing list is empty", () => {
+    assert.deepEqual(normalizeConfig({ rules: [null, 5, "x"] }).rules, []);
+    assert.deepEqual(normalizeConfig({ rules: "nope" }).rules, []);
+    assert.deepEqual(normalizeConfig(undefined).rules, []);
+  });
+
+  test("duplicate rule ids get new ones", () => {
+    const { rules } = normalizeConfig({ rules: [goodRule(), goodRule()] });
+    assert.equal(rules[0].id, "r1");
+    assert.notEqual(rules[1].id, "r1");
+    assert.match(rules[1].id, UUID);
+  });
+
+  test("is idempotent", () => {
+    const once = normalizeConfig({ rules: [goodRule(), { scope: { type: "all" }, actions: [] }] });
+    assert.deepEqual(normalizeConfig(once), once);
+  });
+
+  test("survives a JSON round trip", () => {
+    const config = normalizeConfig({ rules: [goodRule()] });
+    assert.deepEqual(JSON.parse(JSON.stringify(config)), config);
+  });
+});
+
+describe("readConfig", () => {
+  test("empty storage gives the defaults", () => {
+    for (const stored of [undefined, null, {}]) {
+      assert.deepEqual(readConfig(stored), { status: "ok", config: defaultConfig() });
+    }
+  });
+
+  test("reads a stored config", () => {
+    const stored = { schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [goodRule()] };
+    assert.deepEqual(readConfig(stored), { status: "ok", config: stored });
+  });
+
+  test("data without a schema version is treated as a fresh install", () => {
+    assert.deepEqual(readConfig({ rules: [goodRule()] }).config, defaultConfig());
+  });
+
+  test("a newer schema version is reported and not read", () => {
+    assert.deepEqual(readConfig({ schemaVersion: SCHEMA_VERSION + 1, rules: [goodRule()] }), {
+      status: "unsupported",
+      version: SCHEMA_VERSION + 1,
+    });
+  });
+
+  test("an invalid schema version is reported and not read", () => {
+    for (const version of ["1", 0, -1, 1.5, NaN, null, {}]) {
+      const result = readConfig({ schemaVersion: version });
+      assert.equal(result.status, "unsupported", String(version));
+    }
+  });
+});
+
+describe("validateRule: scope", () => {
+  test("a good rule has no issues", () => {
+    assert.deepEqual(validateRule(goodRule()), []);
+  });
+
+  test("all sites needs nothing else", () => {
+    assert.deepEqual(validateRule({ scope: { type: "all" }, actions: [{ type: "remove", param: "a" }] }), []);
+  });
+
+  test("the scope type must be known", () => {
+    const rule = { ...goodRule(), scope: { type: "regex" } };
+    assert.equal(find(validateRule(rule), "scope.type").severity, "error");
+    assert.equal(find(validateRule({ ...goodRule(), scope: undefined }), "scope.type").severity, "error");
+  });
+
+  test("a domain is required", () => {
+    const rule = { ...goodRule(), scope: { type: "host", host: "" } };
+    assert.equal(find(validateRule(rule), "scope.host").severity, "error");
+  });
+
+  test("a domain must be a plain host name", () => {
+    for (const host of ["youtube.com/watch", "youtube.com:8080", "you tube.com", "a@b.com", "a.com?x=1", "a.com#x"]) {
+      const rule = { ...goodRule(), scope: { type: "host", host } };
+      assert.equal(find(validateRule(rule), "scope.host")?.severity, "error", host);
+    }
+  });
+
+  test("good domains pass, including IP addresses, localhost and non-ASCII names", () => {
+    for (const host of ["youtube.com", "WWW.Example.org", "127.0.0.1", "localhost", "пример.рф"]) {
+      const rule = { ...goodRule(), scope: { type: "host", host } };
+      assert.equal(find(validateRule(rule), "scope.host"), undefined, host);
+    }
+  });
+
+  test("a path cannot contain ? or #", () => {
+    for (const path of ["/a?b=1", "/a#b"]) {
+      const rule = { ...goodRule(), scope: { type: "host", host: "a.com", path } };
+      assert.equal(find(validateRule(rule), "scope.path").severity, "error", path);
+    }
+  });
+
+  test("paths with wildcards and without a leading slash are fine", () => {
+    for (const path of ["/a/*", "/a/**", "watch", "/"]) {
+      const rule = { ...goodRule(), scope: { type: "host", host: "a.com", path } };
+      assert.equal(find(validateRule(rule), "scope.path"), undefined, path);
+    }
+  });
+});
+
+describe("validateRule: actions", () => {
+  const withAction = action => ({ scope: { type: "all" }, actions: [action] });
+
+  test("a rule with no actions only gets a warning", () => {
+    const issues = validateRule({ scope: { type: "all" }, actions: [] });
+    assert.equal(find(issues, "actions").severity, "warning");
+    assert.equal(hasErrors(issues), false);
+  });
+
+  test("an action type must be known", () => {
+    assert.equal(find(validateRule(withAction({ type: "explode" })), "actions.0.type").severity, "error");
+    assert.equal(find(validateRule(withAction({})), "actions.0.type").severity, "error");
+    assert.equal(find(validateRule(withAction(null)), "actions.0.type").severity, "error");
+  });
+
+  test("remove needs a parameter name", () => {
+    assert.equal(find(validateRule(withAction({ type: "remove", param: "" })), "actions.0.param").severity, "error");
+    assert.equal(find(validateRule(withAction({ type: "remove" })), "actions.0.param").severity, "error");
+    assert.deepEqual(validateRule(withAction({ type: "remove", param: "utm_*" })), []);
+  });
+
+  test("replace needs a name or value pattern", () => {
+    const issues = validateRule(withAction({ type: "replace" }));
+    assert.equal(find(issues, "actions.0").severity, "error");
+    assert.equal(find(validateRule(withAction({ type: "replace", name: { find: "" }, value: { find: "" } })), "actions.0").severity, "error");
+  });
+
+  test("an invalid regex is an error on that field and names the problem", () => {
+    const name = validateRule(withAction({ type: "replace", name: { find: "[", replace: "x" } }));
+    const value = validateRule(withAction({ type: "replace", value: { find: "(", replace: "x" } }));
+    assert.equal(find(name, "actions.0.name.find").severity, "error");
+    assert.equal(find(value, "actions.0.value.find").severity, "error");
+    assert.match(find(value, "actions.0.value.find").message, /regular expression/i);
+  });
+
+  test("patterns that only filter, with nothing to replace, give a warning", () => {
+    const issues = validateRule(withAction({ type: "replace", name: { find: "^a$" }, value: { find: "^1$" } }));
+    assert.equal(find(issues, "actions.0").severity, "warning");
+    assert.equal(hasErrors(issues), false);
+  });
+
+  test("a replacement without a pattern gives a warning on that pattern", () => {
+    const issues = validateRule(withAction({
+      type: "replace",
+      name: { find: "", replace: "x" },
+      value: { find: "^1$", replace: "2" },
+    }));
+    assert.equal(find(issues, "actions.0.name.find").severity, "warning");
+    assert.equal(hasErrors(issues), false);
+  });
+
+  test("a good replace action has no issues", () => {
+    assert.deepEqual(validateRule(withAction({ type: "replace", value: { find: "^a$", replace: "" } })), []);
+  });
+
+  test("issues carry a message", () => {
+    const issues = validateRule({ scope: { type: "host", host: "" }, actions: [{ type: "remove", param: "" }] });
+    assert.equal(issues.length, 2);
+    for (const issue of issues) assert.ok(issue.message.length > 0);
+  });
+
+  test("every action is checked, not only the first", () => {
+    const issues = validateRule({
+      scope: { type: "all" },
+      actions: [{ type: "remove", param: "a" }, { type: "remove", param: "" }, { type: "explode" }],
+    });
+    assert.ok(find(issues, "actions.1.param"));
+    assert.ok(find(issues, "actions.2.type"));
+  });
+});
+
+describe("usableRules", () => {
+  test("keeps rules without errors, including ones with only warnings", () => {
+    const warned = { id: "w", scope: { type: "all" }, actions: [] };
+    assert.deepEqual(usableRules([goodRule(), warned]).map(r => r.id), ["r1", "w"]);
+  });
+
+  test("drops every rule that has an error", () => {
+    const broken = { ...goodRule(), id: "bad", scope: { type: "host", host: "" } };
+    assert.deepEqual(usableRules([broken, goodRule()]).map(r => r.id), ["r1"]);
+  });
+
+  test("keeps disabled rules (the engine skips them)", () => {
+    assert.equal(usableRules([{ ...goodRule(), enabled: false }]).length, 1);
+  });
+
+  test("anything that is not a list gives an empty list", () => {
+    assert.deepEqual(usableRules(undefined), []);
+  });
+});

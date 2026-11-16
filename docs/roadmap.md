@@ -12,6 +12,9 @@
   - Two different name and value replacements that must apply independently need two actions.
 - Query strings are parsed raw: untouched parameters keep their exact original bytes.
 - The engine (`cleanUrl`) runs rules and their actions in list order, each seeing the previous result. Only `http:` and `https:` URLs are touched, and only their query: when every parameter is removed the `?` goes too, and the fragment is kept.
+- Rules and settings are stored in `storage.local` as `schemaVersion`, `settings` and `rules` (see [storage.md](storage.md)). The stage-0 prototype format is not migrated: it was a draft, and it used a different add-on id, so its storage is not visible to this add-on.
+  - A rule with validation errors stays in storage so it can be fixed, but is not applied until it is valid; warnings do not stop a rule.
+  - Storage with a schema version newer than the code knows is never read or overwritten.
 - Only newly created bookmarks are cleaned at first. Later: optional cleaning on edit. Import and sync are not separate options: `bookmarks.onCreated` also fires for them, to be confirmed by testing.
 - Options page opens in its own tab (toolbar button and the add-ons manager). Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
 
@@ -23,10 +26,14 @@
 3. Remove-parameter action. (done)
 4. Regex replace action (name and value). (done)
 5. `cleanUrl` engine: rule order, several rules per URL. (done)
-6. Storage schema, validation, migration of the prototype format.
+6. Storage schema and validation. (done)
 7. Background wiring on `bookmarks.onCreated`.
 8. Options: rule list (enable, delete, reorder), toolbar button opens the page.
 9. Options: rule editor.
 10. Options: live URL tester.
 11. Import / export, presets.
 12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
+13. Optional: sync rules between devices with `storage.sync`.
+    - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.
+    - Not synced on Firefox for Android.
+    - On conflict the server's value wins per key, so changes from `onChanged` have to be merged.

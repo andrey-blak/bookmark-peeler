@@ -3,14 +3,17 @@
 // scope = { type: "all" }
 //       | { type: "host", host, subdomains?, path? }
 //
-// host:       "youtube.com"; with subdomains (default true) www.youtube.com matches too.
-// path:       optional. A path without wildcards matches exactly. In a pattern, * matches anything
-//             except /, and ** matches anything including /. A trailing slash is ignored.
-//             Matching is case-sensitive and runs on the percent-decoded path.
-//             Port, query and fragment are never part of the match.
+// host: "youtube.com".
+//   With subdomains (default true) www.youtube.com matches too.
+// path: optional.
+//   A path without wildcards matches exactly.
+//   In a pattern, * matches anything except /, and ** matches anything including /.
+//   A trailing slash is ignored.
+//   Matching is case-sensitive and runs on the percent-decoded path.
+//   Port, query and fragment are never part of the match.
 
 /** Lower-cased ASCII (punycode) host name, or null when the text cannot be a plain host name. */
-function normalizeHost(host) {
+export function normalizeHost(host) {
   if (typeof host !== "string" || host === "" || /[\/?#@:\s]/.test(host)) return null;
 
   try {
