@@ -24,6 +24,18 @@ test("manifest has the basic required keys", () => {
   }
 });
 
+test("the add-on asks for the bookmarks and storage permissions and nothing else", () => {
+  assert.deepEqual([...manifest.permissions].sort(), ["bookmarks", "storage"]);
+});
+
+test("the background page is an ES module script that exists", () => {
+  assert.equal(manifest.background.type, "module");
+  assert.ok(manifest.background.scripts.length > 0);
+  for (const path of manifest.background.scripts) {
+    assert.ok(existsSync(new URL(path, srcDir)), `missing background script ${path}`);
+  }
+});
+
 test("every icon referenced by the manifest exists", () => {
   for (const path of Object.values(manifest.icons ?? {})) {
     assert.ok(existsSync(new URL(path, srcDir)), `missing icon ${path}`);

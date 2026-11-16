@@ -7,6 +7,16 @@
     "48": "icons/icon.svg",
     "96": "icons/icon.svg"
   },
+  "permissions": [
+    "bookmarks",
+    "storage"
+  ],
+  "background": {
+    "scripts": [
+      "background/index.js"
+    ],
+    "type": "module"
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "bookmark-peeler@andrey.blak",
