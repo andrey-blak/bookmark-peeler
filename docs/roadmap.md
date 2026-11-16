@@ -11,6 +11,7 @@
   - Case-sensitive by default (`ignoreCase: false`); an invalid regex disables the action.
   - Two different name and value replacements that must apply independently need two actions.
 - Query strings are parsed raw: untouched parameters keep their exact original bytes.
+- The engine (`cleanUrl`) runs rules and their actions in list order, each seeing the previous result. Only `http:` and `https:` URLs are touched, and only their query: when every parameter is removed the `?` goes too, and the fragment is kept.
 - Only newly created bookmarks are cleaned at first. Later: optional cleaning on edit. Import and sync are not separate options: `bookmarks.onCreated` also fires for them, to be confirmed by testing.
 - Options page opens in its own tab (toolbar button and the add-ons manager). Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
 
@@ -21,7 +22,7 @@
 2. Scope matching: all, domain, domain + path or path pattern. (done)
 3. Remove-parameter action. (done)
 4. Regex replace action (name and value). (done)
-5. `cleanUrl` engine: rule order, several rules per URL.
+5. `cleanUrl` engine: rule order, several rules per URL. (done)
 6. Storage schema, validation, migration of the prototype format.
 7. Background wiring on `bookmarks.onCreated`.
 8. Options: rule list (enable, delete, reorder), toolbar button opens the page.
