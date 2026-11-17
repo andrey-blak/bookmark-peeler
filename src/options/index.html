@@ -79,6 +79,18 @@
     </form>
   </dialog>
 
+  <dialog id="migrate-dialog" aria-labelledby="migrate-title">
+    <form method="dialog">
+      <p id="migrate-title"><strong>Rules on this device and synced rules</strong></p>
+      <ul id="migrate-lines" class="lines"></ul>
+      <div class="buttons">
+        <button value="merge" autofocus>Merge</button>
+        <button value="local">Use this device's rules</button>
+        <button value="sync">Use the synced rules</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="import-dialog" aria-labelledby="import-title">
     <form method="dialog">
       <p id="import-title"><strong>Import rules</strong></p>

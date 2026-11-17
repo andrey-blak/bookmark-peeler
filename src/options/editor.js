@@ -23,6 +23,7 @@ import { ruleTitle } from "./rule-list.js";
 import { testRules, describeChange } from "./tester.js";
 import { getPref, setPref } from "./prefs.js";
 import { el } from "./dom.js";
+import { NAME_MAX } from "../core/schema.js";
 
 const DEFAULT_PLACEHOLDER = "Select a rule to edit it, or add a new one.";
 
@@ -57,7 +58,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   }
 
   // hideLabel: the label is still there for screen readers, but the layout already shows what the field is.
-  function textField(label, path, placeholder, { mono = false, disabled = false, hideLabel = false } = {}) {
+  function textField(label, path, placeholder, { mono = false, disabled = false, hideLabel = false, maxLength = null } = {}) {
     const key = pathKey(path);
     const value = path.reduce((node, part) => node?.[part], draft);
     const input = el("input", {
@@ -70,6 +71,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       className: mono ? "mono" : "",
       dataset: { path: key },
     });
+    if (maxLength !== null) input.maxLength = maxLength;
     input.setAttribute("aria-describedby", `msg-${key}`);
     return el("label", { className: "field" }, el("span", { className: hideLabel ? "label sr-only" : "label" }, label), input);
   }
@@ -268,7 +270,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     }
 
     const duplicate = el("button", { type: "button", textContent: "Duplicate", dataset: { duplicate: "" } });
-    const header = el("div", { className: "row" }, textField("Name (optional)", ["name"], "Example visibility"), duplicate);
+    const header = el("div", { className: "row" }, textField("Name (optional)", ["name"], "Example visibility", { maxLength: NAME_MAX }), duplicate);
 
     const footer = el("div", { className: "footer" },
       el("button", { type: "button", className: "primary", textContent: "Save", dataset: { save: "" } }),

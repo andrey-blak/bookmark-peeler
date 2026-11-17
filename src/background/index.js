@@ -2,10 +2,15 @@
 // Listeners must be registered synchronously at the top level, so that Firefox can wake the page for an event.
 
 import { createSelfWrites } from "./self-writes.js";
+import { store, migrator } from "../storage/default.js";
 import { handleBookmarkCreated, handleBookmarkChanged, applyUrlChanges } from "./handler.js";
 
 const deps = {
-  loadStored: () => browser.storage.local.get(["schemaVersion", "settings", "rules"]),
+  // Rules from an earlier version are moved to storage.sync first, when that needs no answer from the user.
+  loadStored: async () => {
+    await migrator.run();
+    return store.loadStored();
+  },
   updateBookmark: (id, changes) => browser.bookmarks.update(id, changes),
   getBookmark: async id => {
     const [bookmark] = await browser.bookmarks.get(id);

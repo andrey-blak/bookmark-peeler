@@ -1,10 +1,19 @@
 # Stored data
 
-Everything the add-on keeps is in `storage.local`, under three top-level keys.
-The code that reads, normalises and validates it is `src/core/schema.js`.
+Everything the add-on keeps is in `storage.sync`, as a few kinds of items.
+The code that lays them out is `src/core/sync-layout.js`, and the code that reads, normalises and validates a config is `src/core/schema.js`.
 Types are JSON types; "default" is what normalisation fills in when the field is missing or has the wrong type.
 
-## Top-level keys
+## Items in storage.sync
+
+| Item | Value | Meaning |
+|---|---|---|
+| `schemaVersion` | integer ≥ 1 | Version of this format. |
+| `settings` | object | Global options, see below. |
+| `order` | array of string | The ids of the rules, in the order they run. |
+| `rule:<id>` | rule | One item per rule, so a change to one rule never overwrites another when devices sync. |
+
+The rest of this page describes a config, `{ schemaVersion, settings, rules }`: what the add-on works with after reading the items, and what the export file holds.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -24,7 +33,7 @@ Types are JSON types; "default" is what normalisation fills in when the field is
 |---|---|---|---|---|
 | `id` | string | no | random UUID | Unique among rules. A missing, empty or duplicate id is replaced. |
 | `enabled` | boolean | no | `true` | Only `false` switches the rule off. |
-| `name` | string | no | none | Label shown in the UI. An empty or blank name is dropped. |
+| `name` | string | no | none | Label shown in the UI. An empty or blank name is dropped, and a name longer than 64 characters is cut to 64 when the rule is read. |
 | `scope` | scope | yes | none | Which URLs the rule applies to. |
 | `actions` | array of action | no | `[]` | What the rule does, in order. |
 
@@ -101,7 +110,7 @@ At least one of `parameter` and `value` needs a non-empty `find`.
 A rule with errors stays in storage so it can be fixed, but is not applied.
 A rule with only warnings is applied.
 
-## Example
+## Example of a config
 
 ```json
 {
@@ -129,9 +138,25 @@ A rule with only warnings is applied.
 
 ## Loading
 
+- The `rule:<id>` items become the rules, in the order of the `order` item. A rule missing from the order is added at the end, in the order of its key. An id in the order without a rule, and an id listed twice, are dropped. This makes a list that another device changed at the same time readable.
 - Empty storage, or data without `schemaVersion`, gives the defaults.
 - A `schemaVersion` newer than the code knows, or not a positive integer, is reported as unsupported and is never read or overwritten.
 - Unknown fields are dropped, and invalid values are kept so that validation can report them.
+
+## Writing
+
+Only the items that changed are written. Deleted rules are removed before the order is rewritten.
+A write that would break a limit of `storage.sync` is refused before anything is written. The size of an item is the length of its key plus the length of the JSON of its value.
+
+| Limit | Value | Refused as |
+|---|---|---|
+| One item | 8 KiB (8192 bytes) | a rule that is too large; for the `order` item, too many rules |
+| All items together | 100 KiB (102400 bytes) | too large in total |
+| Number of items | 512 | too many rules |
+
+## Moving from storage.local
+
+Earlier versions kept the rules in `storage.local`, as `schemaVersion`, `settings` and `rules`. They are moved to `storage.sync` once, and the local copy is left where it is. A flag `syncMigrated` in `storage.local` marks it done.
 
 ## Export file
 

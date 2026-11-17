@@ -11,6 +11,7 @@ The tests are in `tests/unit/`, one file per module:
 
 - `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
 - `src/background/`: what happens when a bookmark is created or edited (including the guard against the add-on's own writes) and the bulk URL changes, with a fake browser.
+- `src/core/` also has how the rules are laid out in `storage.sync` and the limits, and the move from `storage.local`; `src/storage/` has the store and the migrator, tested with a storage area in memory.
 - `src/options/`: the logic of the rule list and of selecting several rules, the rule editor, the "Try it" panel, import and export, the presets, and the scan and undo of "Clean existing bookmarks", without DOM.
 - The manifest: permissions, background page, options page and icons.
 
@@ -23,23 +24,35 @@ Load the add-on first, as described in [development.md](development.md#trying-th
 Repeat the tests after a change in the area they cover.
 A temporary add-on, and its stored rules, are gone after Firefox restarts.
 
+Several tests put rules into storage from the add-on's own console (in `about:debugging#/runtime/this-firefox` click "Inspect" next to Bookmark Peeler).
+The rules live in `storage.sync`, one item per rule, see [storage.md](storage.md).
+Paste this helper into the console once; it replaces all rules with the ones you give it:
+
+```js
+async function seed(rules, settings = { cleanOnEdit: false }) {
+  await browser.storage.sync.clear();
+  await browser.storage.sync.set({
+    schemaVersion: 1,
+    settings,
+    order: rules.map((r, i) => "r" + i),
+    ...Object.fromEntries(rules.map((r, i) => ["rule:r" + i, { id: "r" + i, ...r }]))
+  });
+}
+```
+
 ### Background wiring
 
 The unit tests cover the logic with a fake browser; this checks it in Firefox.
 To try this without the editor, put a rule into storage from the add-on's own console:
 
-1. In `about:debugging#/runtime/this-firefox` click "Inspect" next to Bookmark Peeler and open the Console.
+1. In `about:debugging#/runtime/this-firefox` click "Inspect" next to Bookmark Peeler and open the Console, and paste the `seed` helper from above.
 2. Run:
 
    ```js
-   await browser.storage.local.set({
-     schemaVersion: 1,
-     settings: { cleanOnEdit: false },
-     rules: [{
-       scope: { type: "host", host: "example.com" },
-       actions: [{ type: "remove", parameter: "pp" }]
-     }]
-   })
+   await seed([{
+     scope: { type: "host", host: "example.com" },
+     actions: [{ type: "remove", parameter: "pp" }]
+   }])
    ```
 
 3. Bookmark `https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D` in each of these ways:
@@ -52,21 +65,19 @@ To try this without the editor, put a rule into storage from the add-on's own co
 
 ### Main page: the rule list
 
-To get several rules quickly, put them into storage from the add-on's console, as in the test above (the editor can add them too, see the next section):
+To get several rules quickly, put them into storage from the add-on's console with the `seed` helper (the editor can add them too, see the next section):
 
 ```js
-await browser.storage.local.set({
-  schemaVersion: 1,
-  settings: { cleanOnEdit: false },
-  rules: [
-    { name: "Tracking parameters", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] },
-    { name: "Example", scope: { type: "host", host: "example.com", path: "/video" }, actions: [{ type: "remove", parameter: "pp" }] },
-    { name: "Has an error", scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "x" }] },
-    { name: "Switched off", enabled: false, scope: { type: "host", host: "example.org", subdomains: false }, actions: [] },
-    { scope: { type: "host", host: "news.example.com" }, actions: [{ type: "remove", parameter: "ref" }] }
-  ]
-})
+await seed([
+  { name: "Tracking parameters", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] },
+  { name: "Example", scope: { type: "host", host: "example.com", path: "/video" }, actions: [{ type: "remove", parameter: "pp" }] },
+  { name: "Has an error", scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "x" }] },
+  { name: "Switched off", enabled: false, scope: { type: "host", host: "example.org", subdomains: false }, actions: [] },
+  { scope: { type: "host", host: "news.example.com" }, actions: [{ type: "remove", parameter: "ref" }] }
+])
 ```
+
+Reload the main page after seeding.
 
 Click the toolbar button: the main page must open in its own tab. Then check:
 
@@ -138,7 +149,7 @@ Have two or three rules, for example "Tracking parameters" and the Example visib
 2. Export: a file `bookmark-peeler-rules.json` is downloaded. Open it: it holds `schemaVersion`, `settings` and all the rules, indented.
 3. Import…: the file chooser shows JSON files by default. Choose the exported file: a dialog says how many rules it holds, how many have errors, and how many already exist.
 4. "Add to my rules": the imported rules are appended, the existing ones stay, and none has the id of another (open the exported file and the stored data to compare if you wish). An Undo message appears; Undo (or Ctrl+Z) removes the added rules again.
-5. Change the settings in the console (`await browser.storage.local.set({ settings: { cleanOnEdit: true } })`), then choose "Add to my rules" again: the settings stay as they were. Choose "Replace my rules" with a file that has `"cleanOnEdit": false`: the rules and the settings are those of the file, and Undo brings back the previous rules and the previous settings.
+5. Change the settings in the console (`await browser.storage.sync.set({ settings: { cleanOnEdit: true } })`), then choose "Add to my rules" again: the settings stay as they were. Choose "Replace my rules" with a file that has `"cleanOnEdit": false`: the rules and the settings are those of the file, and Undo brings back the previous rules and the previous settings.
 6. Cancel, or Esc, in the dialog imports nothing. With unsaved changes in the editor, choosing Add or Replace asks Save, Discard or Cancel first.
 7. Files that must be refused, each with a short message at the bottom of the page that disappears by itself after a few seconds, nothing left above the list, and no change: a text file, a file with `{ broken`, a JSON file such as `[]` or `{}`, and a rules file with `"schemaVersion": 2`.
 8. Presets opens a menu with "Tracking parameters" and "YouTube share parameters", each with a one-line description. It closes with Esc and with a click elsewhere. Choosing one opens it in the editor as a new unsaved rule, named like the preset, with its actions; Save stores it. With unsaved changes in the editor, the usual Save, Discard or Cancel prompt appears.
@@ -147,7 +158,7 @@ Have two or three rules, for example "Tracking parameters" and the Example visib
 ### Clean when edited
 
 1. In the add-on's console, switch the setting on and add the Example rule from "Background wiring":
-   `await browser.storage.local.set({ schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [{ scope: { type: "host", host: "example.com" }, actions: [{ type: "remove", parameter: "pp" }] }] })`
+   `await seed([{ scope: { type: "host", host: "example.com" }, actions: [{ type: "remove", parameter: "pp" }] }], { cleanOnEdit: true })`
 2. Make a bookmark of any other page. Open its Properties (Library, or right-click, Edit Bookmark…), and set its Location to `https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D`. After saving, the Location shows no `pp`.
 3. Change only the title of a bookmark that has such an URL: the URL is not touched (the rule is applied to edited URLs only).
 4. Switch the setting off (`cleanOnEdit: false`) and repeat step 2: the URL keeps its `pp`.
@@ -158,7 +169,7 @@ Have two or three rules, for example "Tracking parameters" and the Example visib
 Have some bookmarks with tracking parameters (for example `https://example.com/?a=1&utm_source=x`) and the "Tracking parameters" preset saved.
 
 1. The header has a Settings button. It opens a panel in place of the editor, titled "Settings", without a back button; pressing the Settings button again, clicking a rule in the list, or Add rule goes back to the editor. The button looks pressed while the panel is open.
-2. The checkbox "Also clean a bookmark when its URL is edited" is off by default. Tick it, reload the page: it stays ticked, and `await browser.storage.local.get("settings")` shows `cleanOnEdit: true`. Untick it again.
+2. The checkbox "Also clean a bookmark when its URL is edited" is off by default. Tick it, reload the page: it stays ticked, and `await browser.storage.sync.get("settings")` shows `cleanOnEdit: true`. Untick it again.
 3. "Clean existing bookmarks…" opens a dialog: first "Looking at your bookmarks…", then "N of M bookmarks would change." The changes are in a "Show the changes (N)" list that is open when the dialog appears (click its arrow to collapse it): each shows the title, and under it two columns, Before and After, with the old and the new URL. Parameters that were removed or rewritten are marked red in Before, and the new or rewritten ones green in After, in the text colour and not bold. A switch above the list, "Text colour" | "Background", changes how they are marked (the choice is remembered; it is there to compare the two). With more than 50 changes the list shows 50 and a "Show more… (K left)" button that adds the next 50.
 4. Cancel (or Esc) changes nothing. With no matching bookmark the dialog says "No bookmark would change" and has only Close.
 5. "Clean N bookmarks": a message "Cleaning…", then "Cleaned N bookmarks." with Undo. Check a few bookmarks in the Library: the tracking parameters are gone. Folders, separators and non-web bookmarks (for example `place:` queries) are untouched.
@@ -203,3 +214,27 @@ Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$`
 4. The Presets drop-down in the invitation lists the same presets as the Presets button in the header, opens below the button and lines up with its left edge, and closes with Esc and with a click elsewhere. Choosing a preset opens it in the editor as a new unsaved rule, like the header menu does.
 5. The Settings button still shows the settings; going back shows the invitation again when there are still no rules. Import a file with rules: the invitation goes away.
 6. With some rules in the list but none selected, the editor invitation ("Select a rule to edit it, or add a new one.") is shown, not the empty one.
+
+### Rules in storage.sync
+
+1. Add a rule in the main page and save it. In the add-on's console, `await browser.storage.sync.get(null)` shows `schemaVersion`, `settings`, `order` (the ids) and one item `rule:<id>` per rule, and nothing is stored in `storage.local` for the rules.
+2. Change one rule and save: in the console, only that `rule:<id>` item changes. Move a rule in the list: only `order` changes. Delete a rule: its `rule:<id>` item is gone and `order` no longer lists it.
+3. This works with Firefox Sync switched off, and with "Add-ons" not selected in Firefox Sync settings: rules are stored and read as usual.
+4. With two Firefox profiles signed in to the same account, "Add-ons" selected in Firefox Sync settings and the add-on loaded in both: add a rule in one profile and use "Sync Now". The rule appears in the other profile, and the main page there, if it is open, shows it without a reload. Reorder, switch off, edit and delete a rule on one side and check the other side follows. Settings (the "clean when URL is edited" checkbox) follow too.
+5. A rule that is too large is refused: add a Remove action to a rule and paste about 9000 characters into its Parameter field, then save. A message at the bottom says the rule is too large to be saved, with the rule's name (at most 40 characters of it, then an ellipsis), the rule keeps its unsaved state in the editor, and nothing is written. Importing a file with such a rule, and "Add to my rules", is refused in the same way, with nothing changed.
+6. Too many rules is refused: import a file with about 250 rules (each its own `id`). A message says there are too many rules to be saved. With a few hundred small rules in total, or with rules together over 100 KiB, a message says the rules are too large to be saved.
+7. Rules from an earlier version: in the console, `await browser.storage.sync.clear()`, then `await browser.storage.local.set({ schemaVersion: 1, settings: { cleanOnEdit: false }, rules: [{ id: "old1", name: "Old rule", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] }] })` and `await browser.storage.local.remove("syncMigrated")`. Reload the main page: the old rule is there and no question is asked. `await browser.storage.sync.get(null)` now has `rule:old1`, and `storage.local` has `syncMigrated: true`. Reload again: nothing changes.
+8. Different rules on both sides: put a rule `old1` in `storage.local` as in step 7 without clearing `storage.sync`, which holds other rules. Reload: a dialog says how many rules this device has and how many are synced, with "Merge", "Use this device's rules" and "Use the synced rules".
+   - Merge: the synced rules come first in their order, then the rule that was only on this device.
+   - Use this device's rules: only the old rules are left, and the synced ones are gone from `storage.sync`.
+   - Use the synced rules: nothing changes in `storage.sync`.
+   - Closing the dialog with Esc leaves everything as it was, and it is asked again the next time the page opens. After any choice, it is not asked again.
+   Between reloads, set `syncMigrated` back with `await browser.storage.local.remove("syncMigrated")` to repeat.
+9. The background page also moves the rules by itself: with rules only in `storage.local` and `syncMigrated` removed, bookmark a page without opening the main page. The rule is applied to the new bookmark.
+
+### Rule names
+
+1. The Name field in the editor stops accepting characters at 64. Pasting a longer text keeps the first 64 characters.
+2. Delete a rule that has a 64-character name: the message at the bottom shows the first 40 characters of the name followed by "…", for example "Deleted “…”.", and not the whole name. A shorter name is shown in full.
+3. Import a file in which a rule has a name of several hundred characters: the rule is imported and its name is cut to 64 characters. The same happens to such a name already in storage when the page loads.
+4. In the list, a 64-character name is shown with an ellipsis where it does not fit, as before.

@@ -205,3 +205,11 @@ export function selectionAfterRemove(index, remaining) {
 export function showEmptyState({ view, loaded, ruleCount, editorOpen }) {
   return view === "rules" && loaded && ruleCount === 0 && !editorOpen;
 }
+
+/** The text cut to `max` characters and ended with an ellipsis, for messages. Shorter text is left as it is. */
+export function ellipsize(text, max) {
+  const characters = Array.from(text);
+  if (characters.length <= max) return text;
+
+  return characters.slice(0, max).join("").trimEnd() + "…";
+}

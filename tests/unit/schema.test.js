@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   SCHEMA_VERSION,
+  NAME_MAX,
   defaultConfig,
   normalizeRule,
   normalizeConfig,
@@ -119,6 +120,44 @@ describe("normalizeRule", () => {
 
   test("is idempotent", () => {
     const once = normalizeRule({ scope: { type: "host", host: "a.example" }, actions: [{ type: "remove", parameter: "x" }] });
+    assert.deepEqual(normalizeRule(once), once);
+  });
+});
+
+describe("rule names are at most NAME_MAX characters", () => {
+  test("the limit is 64", () => {
+    assert.equal(NAME_MAX, 64);
+  });
+
+  test("a name of exactly the limit is kept", () => {
+    const name = "x".repeat(NAME_MAX);
+    assert.equal(normalizeRule({ name }).name, name);
+  });
+
+  test("a longer name is cut to the limit", () => {
+    const rule = normalizeRule({ name: "x".repeat(NAME_MAX + 50) });
+    assert.equal(rule.name, "x".repeat(NAME_MAX));
+  });
+
+  test("a name is trimmed first, then cut, and the cut does not leave a space at the end", () => {
+    assert.equal(normalizeRule({ name: `   ${"x".repeat(NAME_MAX)}   ` }).name, "x".repeat(NAME_MAX));
+    assert.equal(normalizeRule({ name: `${"x".repeat(NAME_MAX - 1)} yyy` }).name, "x".repeat(NAME_MAX - 1));
+  });
+
+  test("characters outside the basic alphabet are counted as one and never split", () => {
+    const rule = normalizeRule({ name: "😀".repeat(NAME_MAX + 10) });
+    assert.equal(Array.from(rule.name).length, NAME_MAX);
+    assert.equal(rule.name, "😀".repeat(NAME_MAX));
+  });
+
+  test("loading cuts the names of stored or imported rules", () => {
+    const { rules } = normalizeConfig({ rules: [{ id: "a", name: "n".repeat(500) }, { id: "b", name: "short" }] });
+    assert.equal(rules[0].name.length, NAME_MAX);
+    assert.equal(rules[1].name, "short");
+  });
+
+  test("normalising again changes nothing", () => {
+    const once = normalizeRule({ name: "x".repeat(200) });
     assert.deepEqual(normalizeRule(once), once);
   });
 });

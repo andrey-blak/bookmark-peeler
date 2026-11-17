@@ -18,6 +18,7 @@ import {
   keyCommand,
   ruleInitial,
   showEmptyState,
+  ellipsize,
   stepSelection,
   selectionAfterRemove,
 } from "../../src/options/rule-list.js";
@@ -482,5 +483,26 @@ describe("showEmptyState", () => {
 
   test("not shown before the rules are loaded, or when they cannot be shown at all", () => {
     assert.equal(showEmptyState(state({ loaded: false })), false);
+  });
+});
+
+describe("ellipsize", () => {
+  test("short text is left as it is, up to exactly the limit", () => {
+    assert.equal(ellipsize("short", 40), "short");
+    assert.equal(ellipsize("x".repeat(40), 40), "x".repeat(40));
+    assert.equal(ellipsize("", 40), "");
+  });
+
+  test("longer text is cut to the limit and ends with an ellipsis", () => {
+    assert.equal(ellipsize("x".repeat(41), 40), "x".repeat(40) + "…");
+    assert.equal(ellipsize("x".repeat(5000), 40), "x".repeat(40) + "…");
+  });
+
+  test("a space left at the cut is dropped before the ellipsis", () => {
+    assert.equal(ellipsize("x".repeat(39) + " " + "y".repeat(5), 40), "x".repeat(39) + "…");
+  });
+
+  test("characters outside the basic alphabet are counted as one and never split", () => {
+    assert.equal(ellipsize("😀".repeat(50), 40), "😀".repeat(40) + "…");
   });
 });

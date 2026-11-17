@@ -17,7 +17,11 @@ The decisions behind the add-on.
 
 ## Storage
 
-- Rules and settings are in `storage.local`, with a `schemaVersion`.
+- Rules and settings are in `storage.sync`, with a `schemaVersion`. There is no addon setting for it.
+- Everything syncs, settings included.
+- Every rule is its own item, so a change to one rule does not overwrite another when devices sync.
+- A rule or total size over the limits of `storage.sync` is refused with a message.
+- If only one side has rules, they are used without asking. If this device and the synced storage have different rules, a dialog appears: "Merge" (all rules from both sides, a rule on both sides from the synced side), "Use this device's rules" or "Use the synced rules".
 - A rule with errors stays in storage so it can be fixed, but is not applied. Warnings do not stop a rule.
 - Storage with a newer schema version than the code knows is never read or overwritten.
 

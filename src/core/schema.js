@@ -9,6 +9,9 @@ import { normalizeHost } from "./scope.js";
 
 export const SCHEMA_VERSION = 1;
 
+/** The longest a rule's name can be, in characters. Longer names are cut when a rule is normalised. */
+export const NAME_MAX = 64;
+
 export function defaultConfig() {
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -78,7 +81,10 @@ export function normalizeRule(raw) {
     id: isText(source.id) && source.id !== "" ? source.id : newId(),
     enabled: source.enabled !== false,
   };
-  if (isText(source.name) && source.name.trim() !== "") rule.name = source.name.trim();
+  if (isText(source.name) && source.name.trim() !== "") {
+    // Counted in characters, not UTF-16 units, so a character outside the basic alphabet is never split.
+    rule.name = Array.from(source.name.trim()).slice(0, NAME_MAX).join("").trimEnd();
+  }
 
   rule.scope = normalizeScope(source.scope);
   rule.actions = Array.isArray(source.actions) ? source.actions.map(normalizeAction) : [];
@@ -106,7 +112,7 @@ export function normalizeConfig(raw) {
 }
 
 /**
- * Reads what storage.local returned.
+ * Reads what the store returned.
  * Empty storage and data without a schema version give the defaults.
  * A schema version this code does not know (newer, or not a positive integer) is reported as "unsupported"
  * and must not be overwritten.

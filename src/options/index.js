@@ -11,6 +11,7 @@ import {
   restoreRules,
   setEnabledMany,
   ruleTitle,
+  ellipsize,
   ruleSubtitle,
   ruleStatus,
   ruleInitial,
@@ -26,11 +27,13 @@ import { exportFile, parseImport, summarizeImport, mergeImport } from "./transfe
 import { PRESETS, presetDraft } from "./presets.js";
 import { createSettings } from "./settings.js";
 import { createBulkClean } from "./bulk-dialog.js";
+import { store, migrator } from "../storage/default.js";
+import { StoreError } from "../storage/store.js";
 import { getPref, setPref } from "./prefs.js";
 
-const STORAGE_KEYS = ["schemaVersion", "settings", "rules"];
 const UNDO_MS = 8000;
 const MESSAGE_MS = 6000;
+const MESSAGE_NAME_MAX = 40; // characters of a rule's name shown in a message
 
 const $ = id => document.getElementById(id);
 const list = $("rules");
@@ -133,7 +136,7 @@ function toggleCollapsed() {
 // --- Storage ---
 
 async function load({ onlyIfChanged = false } = {}) {
-  const loaded = readConfig(await browser.storage.local.get(STORAGE_KEYS));
+  const loaded = readConfig(await store.loadStored());
 
   if (loaded.status !== "ok") {
     config = null;
@@ -171,13 +174,33 @@ async function save(rules, options) {
   return saveConfig({ ...config, rules }, options);
 }
 
+/** The message for a write that the store refused, or null when the error is something else. */
+function storeProblem(error, rules) {
+  if (!(error instanceof StoreError)) return null;
+
+  switch (error.code) {
+    case "rule-too-large": {
+      const rule = rules.find(r => r.id === error.ruleId);
+      return `${rule ? `“${ellipsize(ruleTitle(rule), MESSAGE_NAME_MAX)}”` : "A rule"} is too large to be saved.`;
+    }
+    case "too-large":
+      return "Your rules are too large to be saved. Delete some rules first.";
+    case "too-many":
+      return "There are too many rules to be saved. Delete some rules first.";
+    case "unsupported":
+      return "These rules were saved by a newer version of Bookmark Peeler, so they can't be changed here.";
+    default:
+      return null;
+  }
+}
+
 /** Stores a whole config (rules and settings). Returns whether it was stored. */
 async function saveConfig(next, { rerender = true } = {}) {
   try {
-    await browser.storage.local.set(next);
+    await store.writeConfig(next);
   } catch (error) {
     console.error("Bookmark Peeler:", error);
-    showMessage("Couldn't save your changes. Reload the page and try again.");
+    showMessage(storeProblem(error, next.rules) ?? "Couldn't save your changes. Reload the page and try again.");
     return false;
   }
 
@@ -483,7 +506,7 @@ async function deleteRules(ids) {
   await save(rules);
 
   const text = removed.length === 1
-    ? `Deleted “${ruleTitle(removed[0].rule)}”.`
+    ? `Deleted “${ellipsize(ruleTitle(removed[0].rule), MESSAGE_NAME_MAX)}”.`
     : `Deleted ${removed.length} rules.`;
   showUndo(text, () => restoreDeleted(removed));
 }
@@ -669,6 +692,55 @@ function renderPresets() {
 
 function closeMenus() {
   for (const menu of document.querySelectorAll(".menu[open]")) menu.open = false;
+}
+
+// --- Moving the rules of an earlier version to storage.sync ---
+
+/** Shows what is on both sides and returns the choice: "merge", "local", "sync", or "cancel". */
+function askMigration({ local, sync }) {
+  const lines = [
+    `This device has ${count(local.rules.length, "rule", "rules")}. Your synced rules have ${count(sync.rules.length, "rule", "rules")}.`,
+    "Merge keeps all of them, and a rule that is on both sides comes from the synced side.",
+  ];
+
+  $("migrate-lines").replaceChildren(...lines.map(text => {
+    const item = document.createElement("li");
+    item.textContent = text;
+    return item;
+  }));
+
+  const dialog = $("migrate-dialog");
+  return new Promise(resolve => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "cancel"), { once: true });
+    dialog.returnValue = "";
+    dialog.showModal();
+  });
+}
+
+/**
+ * Rules kept by an earlier version move to storage.sync, once.
+ * That needs no answer unless this device and the synced storage have different rules, which the user is asked about.
+ * Closing the dialog without a choice leaves things as they are, and it asks again the next time the page opens.
+ */
+async function migrateRules() {
+  const result = await migrator.run();
+
+  if (result.status === "failed") {
+    const problem = storeProblem(result.error, []);
+    showMessage(`Couldn't move your rules to the new storage.${problem ? ` ${problem}` : ""}`);
+    return;
+  }
+  if (result.status !== "ask") return;
+
+  const choice = await askMigration(result);
+  if (choice === "cancel") return;
+
+  try {
+    await migrator.resolve(choice, result);
+  } catch (error) {
+    console.error("Bookmark Peeler:", error);
+    showMessage(storeProblem(error, []) ?? "Couldn't move your rules to the new storage.");
+  }
 }
 
 // --- Events ---
@@ -885,13 +957,16 @@ window.addEventListener("beforeunload", event => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === "local") load({ onlyIfChanged: true });
+  if (area === "sync") load({ onlyIfChanged: true });
 });
 
 applyCollapsed();
 renderPresets();
 editor.close();
-load().catch(error => {
-  console.error("Bookmark Peeler:", error);
-  showNotice("Couldn't load your rules.");
-});
+migrateRules()
+  .catch(error => console.error("Bookmark Peeler:", error))
+  .then(() => load())
+  .catch(error => {
+    console.error("Bookmark Peeler:", error);
+    showNotice("Couldn't load your rules.");
+  });
