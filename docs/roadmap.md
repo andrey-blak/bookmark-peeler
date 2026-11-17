@@ -2,7 +2,6 @@
 
 What is still to do, all of it optional.
 
-1. Empty state on first run: a short invitation with an Add rule button, and the presets.
 1. Sync rules between devices with `storage.sync`.
    - The extension cannot switch Firefox Sync on or off; the user needs "Add-ons" ticked in the Sync settings.
    - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.

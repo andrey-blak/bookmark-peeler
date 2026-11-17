@@ -14,6 +14,7 @@ import {
   ruleSubtitle,
   ruleStatus,
   ruleInitial,
+  showEmptyState,
   keyCommand,
   stepSelection,
   selectionAfterRemove,
@@ -56,6 +57,7 @@ const editor = createEditor($("editor"), {
   onSave: saveEditor,
   onChange: updateMarks,
   onDuplicate: duplicateRule,
+  onCancel: closeNewRule,
   getRules: () => (config ? config.rules : []),
 });
 
@@ -79,9 +81,22 @@ let view = "rules"; // what the right side shows: the rule editor or the setting
 
 function showView(name) {
   view = name;
-  $("editor").hidden = name !== "rules";
-  $("settings").hidden = name !== "settings";
   $("settings-button").setAttribute("aria-pressed", String(name === "settings"));
+  updatePanes();
+}
+
+/** Shows one of the editor, the settings and the invitation to add a rule. */
+function updatePanes() {
+  const empty = showEmptyState({
+    view,
+    loaded: config !== null,
+    ruleCount: config ? config.rules.length : 0,
+    editorOpen: editor.isOpen,
+  });
+
+  $("editor").hidden = view !== "rules" || empty;
+  $("settings").hidden = view !== "settings";
+  $("empty").hidden = !empty;
 }
 
 function updateSettings() {
@@ -288,6 +303,7 @@ function render() {
   updateMarks();
   editor.refreshTester();
   updateSettings();
+  updatePanes();
 
   if (focusId !== null) {
     list.querySelector(`[data-id="${CSS.escape(focusId)}"] .main`)?.focus();
@@ -409,6 +425,15 @@ async function addRule() {
   editor.open(newDraft(), { isNew: true });
   render();
   editor.focus("name");
+}
+
+/** Closes a new rule that has not been saved. Changes in it are asked about first, an untouched one just closes. */
+async function closeNewRule() {
+  if (!editor.isNew || !(await confirmLeave())) return;
+
+  setSelected(null);
+  editor.close();
+  render();
 }
 
 async function duplicateRule() {
@@ -622,21 +647,28 @@ async function openPreset(id) {
   editor.focus("name");
 }
 
+/** Fills the Presets menus, the one in the header and the one in the invitation to add a rule. */
 function renderPresets() {
-  $("presets-list").replaceChildren(...PRESETS.map(preset => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "menu-item";
-    button.dataset.preset = preset.id;
+  for (const menu of [$("presets-list"), $("empty-presets-list")]) {
+    menu.replaceChildren(...PRESETS.map(preset => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "menu-item";
+      button.dataset.preset = preset.id;
 
-    const title = document.createElement("span");
-    title.textContent = preset.title;
-    const description = document.createElement("small");
-    description.textContent = preset.description;
+      const title = document.createElement("span");
+      title.textContent = preset.title;
+      const description = document.createElement("small");
+      description.textContent = preset.description;
 
-    button.append(title, description);
-    return button;
-  }));
+      button.append(title, description);
+      return button;
+    }));
+  }
+}
+
+function closeMenus() {
+  for (const menu of document.querySelectorAll(".menu[open]")) menu.open = false;
 }
 
 // --- Events ---
@@ -812,6 +844,7 @@ list.addEventListener("dragend", () => {
 });
 
 $("add").addEventListener("click", addRule);
+$("empty-add").addEventListener("click", addRule);
 $("settings-button").addEventListener("click", () => showView(view === "settings" ? "rules" : "settings"));
 
 $("export").addEventListener("click", () => {
@@ -828,20 +861,21 @@ $("import-file").addEventListener("change", event => {
   if (file) importRules(file);
 });
 
-$("presets-list").addEventListener("click", event => {
-  const button = event.target.closest("[data-preset]");
-  if (!button) return;
-
-  $("presets").open = false;
-  openPreset(button.dataset.preset);
-});
-
-// The presets menu closes on a click elsewhere and on Escape.
 document.addEventListener("click", event => {
-  if (!event.target.closest("#presets")) $("presets").open = false;
+  const button = event.target.closest("[data-preset]");
+  if (button) {
+    closeMenus();
+    openPreset(button.dataset.preset);
+    return;
+  }
+
+  // A Presets menu closes on a click elsewhere, and on Escape.
+  for (const menu of document.querySelectorAll(".menu[open]")) {
+    if (!menu.contains(event.target)) menu.open = false;
+  }
 });
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape") $("presets").open = false;
+  if (event.key === "Escape") closeMenus();
 });
 $("collapse").addEventListener("click", toggleCollapsed);
 $("toast-undo").addEventListener("click", runUndo);

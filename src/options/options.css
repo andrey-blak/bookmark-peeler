@@ -676,6 +676,7 @@ body.collapsed .rule.unsaved .main::after {
 /* The header buttons, and the Presets summary that looks like one, all have the same height.
    Only the direct children: the entries of the Presets menu are buttons too, with their own layout. */
 .tools > button,
+.empty-actions > button,
 .menu > summary {
   display: inline-flex;
   align-items: center;
@@ -860,4 +861,31 @@ dialog .lines li {
 
 .hl-background .added {
   background: var(--success-bg);
+}
+
+/* The invitation to add a rule, shown when there are no rules */
+
+.empty[hidden] {
+  display: none;
+}
+
+.empty h2 {
+  margin: 0 0 8px;
+}
+
+.empty p {
+  margin: 0 0 16px;
+  color: GrayText;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu.start .menu-list {
+  inset-inline-start: 0;
+  inset-inline-end: auto;
 }

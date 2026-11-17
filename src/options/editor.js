@@ -34,9 +34,10 @@ const clone = value => structuredClone(value);
  * @param handlers.onSave called when the user asks to save (Save button)
  * @param handlers.onChange called after every change of the draft
  * @param handlers.onDuplicate called when the user presses Duplicate
+ * @param handlers.onCancel called when the user presses Cancel, which a new rule has
  * @param handlers.getRules returns the stored rules, for the "All rules" mode of the tester
  */
-export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) {
+export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, getRules }) {
   let draft = null;
   let baseline = null;
   let isNew = false;
@@ -272,6 +273,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
     const footer = el("div", { className: "footer" },
       el("button", { type: "button", className: "primary", textContent: "Save", dataset: { save: "" } }),
       el("button", { type: "button", textContent: "Revert", dataset: { revert: "" } }),
+      // A rule that is not stored yet can be closed without saving it.
+      ...(isNew ? [el("button", { type: "button", textContent: "Cancel", dataset: { cancel: "" } })] : []),
       el("span", { className: "summary", id: "summary", role: "status" }));
 
     root.replaceChildren(el("form", { className: "editor-form", noValidate: true }, header, scopeSection(), actionsSection(), testerSection(), footer));
@@ -421,6 +424,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
       onSave();
     } else if (event.target.closest("[data-revert]")) {
       revert();
+    } else if (event.target.closest("[data-cancel]")) {
+      onCancel();
     } else if (event.target.closest("[data-duplicate]")) {
       onDuplicate();
     }

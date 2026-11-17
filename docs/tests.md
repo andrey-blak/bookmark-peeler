@@ -108,6 +108,7 @@ Start with the rules from the previous section, or an empty list.
 17. End to end: create "Remove pp" for `example.com`, action Remove parameter `pp`, and Save. Bookmark an example.com URL with `&pp=...`: the saved bookmark has no `pp`.
 18. A stored rule that you have just opened has both greyed out. Change a field: both become active, and Ctrl+S saves. Change it back to what it was: both are greyed out again. Save: Save and Revert are greyed out, and "Saved." is shown. With Save greyed out, Ctrl+S does nothing, and the browser's own "Save page" dialog does not open either.
 19. A new rule from Add rule, Duplicate or a preset has Save active at once, so a preset or a copy can be saved as it is. Revert is greyed out until you change something, and then clears the form. After Save, the rule is stored and both buttons are greyed out. Switching a rule on or off in the list does not make Save active.
+20. A new rule that is not stored yet (from Add rule, Duplicate, a preset or the invitation) has a Cancel button the footer. Stored rules do not have it. Cancel on an untouched new rule closes the editor at once, and its row disappears from the list. Change something in the new rule and press Cancel: a dialog offers Save, Discard and Cancel. Discard closes the editor without storing anything, Save stores the rule and closes the editor, and Cancel in the dialog keeps the editor open. After closing, with no rules the invitation is shown, otherwise the usual "Select a rule to edit it, or add a new one." line, and nothing is selected in the list.
 
 ### Main page: "Try it"
 
@@ -193,3 +194,12 @@ Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$`
 5. Drag a card by its handle over another: a line shows where it will land (above or below, by the half of the card you are over). Drop it: the cards are reordered. Dropping on the dragged card itself shows no line and changes nothing. Drag the whole card by a text field: nothing moves (only the handle drags).
 6. Messages follow the card: give the card with the invalid regex an error, move it, and the red message and the outlined field are on the moved card, not on the card that took its place.
 7. Revert brings the old order back; Save stores the new order, and after a reload the actions are in it.
+
+### Main page: the empty rule list
+
+1. With no rules, the right side shows the heading "No rules yet", the sentence "Bookmark Peeler cleans the URL of a bookmark when you save it, using rules you create.", an Add rule button and a Presets drop-down. The Add rule button and the Presets drop-down have the same height. The left side shows no rules, and the usual editor invitation ("Select a rule to edit it, or add a new one.") is not shown.
+2. The same happens after you delete every rule: the invitation appears as soon as the last rule is gone. Undo (or Ctrl+Z) brings the rule back and the invitation goes away.
+3. Add rule opens a new rule in the editor, and the invitation is gone. Save it: the list has one rule. Open a new rule again with Add rule and press Cancel: the editor closes and, with no rules, the invitation comes back.
+4. The Presets drop-down in the invitation lists the same presets as the Presets button in the header, opens below the button and lines up with its left edge, and closes with Esc and with a click elsewhere. Choosing a preset opens it in the editor as a new unsaved rule, like the header menu does.
+5. The Settings button still shows the settings; going back shows the invitation again when there are still no rules. Import a file with rules: the invitation goes away.
+6. With some rules in the list but none selected, the editor invitation ("Select a rule to edit it, or add a new one.") is shown, not the empty one.

@@ -200,3 +200,8 @@ export function stepSelection(current, delta, count) {
 export function selectionAfterRemove(index, remaining) {
   return remaining === 0 ? -1 : Math.min(index, remaining - 1);
 }
+
+/** The invitation to add a rule is shown on the right when there are no rules, nothing is open in the editor, and the rules side is showing. */
+export function showEmptyState({ view, loaded, ruleCount, editorOpen }) {
+  return view === "rules" && loaded && ruleCount === 0 && !editorOpen;
+}

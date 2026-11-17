@@ -17,6 +17,7 @@ import {
   ruleStatus,
   keyCommand,
   ruleInitial,
+  showEmptyState,
   stepSelection,
   selectionAfterRemove,
 } from "../../src/options/rule-list.js";
@@ -456,5 +457,30 @@ describe("setEnabledMany", () => {
     assert.deepEqual(result.map(r => r.enabled), [false, true, false]);
     assert.equal(result[1], rules[1]);
     assert.equal(rules[0].enabled, true);
+  });
+});
+
+describe("showEmptyState", () => {
+  const state = (extra = {}) => ({ view: "rules", loaded: true, ruleCount: 0, editorOpen: false, ...extra });
+
+  test("shown when there are no rules and nothing is open", () => {
+    assert.equal(showEmptyState(state()), true);
+  });
+
+  test("not shown while there are rules", () => {
+    assert.equal(showEmptyState(state({ ruleCount: 1 })), false);
+    assert.equal(showEmptyState(state({ ruleCount: 12 })), false);
+  });
+
+  test("not shown while the editor has a rule open, for example a new one", () => {
+    assert.equal(showEmptyState(state({ editorOpen: true })), false);
+  });
+
+  test("not shown in the settings", () => {
+    assert.equal(showEmptyState(state({ view: "settings" })), false);
+  });
+
+  test("not shown before the rules are loaded, or when they cannot be shown at all", () => {
+    assert.equal(showEmptyState(state({ loaded: false })), false);
   });
 });

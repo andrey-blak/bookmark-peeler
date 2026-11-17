@@ -37,6 +37,18 @@
 
     <section id="editor" class="editor" aria-label="Rule editor"></section>
     <section id="settings" class="editor" aria-label="Settings" hidden></section>
+
+    <section id="empty" class="editor empty" aria-label="No rules" hidden>
+      <h2>No rules yet</h2>
+      <p>Bookmark Peeler cleans the URL of a bookmark when you save it, using rules you create.</p>
+      <div class="empty-actions">
+        <button id="empty-add" type="button" class="primary">Add rule</button>
+        <details id="empty-presets" class="menu start">
+          <summary>Presets</summary>
+          <div id="empty-presets-list" class="menu-list"></div>
+        </details>
+      </div>
+    </section>
   </main>
 
   <div id="toast" class="toast" role="status" hidden>
