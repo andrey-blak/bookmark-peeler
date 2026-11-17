@@ -1,4 +1,4 @@
-// Small preferences of the page, kept per browser in localStorage: the last tested URL, the tester mode,
+// Small preferences of the page, kept per browser in localStorage: the tester mode,
 // whether the rule list is collapsed. Storage can be unavailable or blocked, so every access is guarded.
 
 const PREFIX = "bookmark-peeler.";

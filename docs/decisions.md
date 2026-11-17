@@ -38,7 +38,7 @@ The decisions behind the add-on.
 
 - The list's switch, reordering and deleting save at once, with an Undo for the last delete or import. The editor works on a copy with Save and Revert, so a rule can be tried before it is saved. Unsaved changes are never dropped silently.
 - A rule with errors can be saved; the editor says it is not applied. A new rule shows errors and warnings only after the user has typed.
-- "Try it" runs the unsaved rule, alone or with all rules. Its URL field is remembered without Save. 
+- "Try it" runs the unsaved rule, alone or with all rules.
 
 ## Import, export and presets
 

@@ -43,8 +43,9 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
   let justSaved = false;
   let placeholder = DEFAULT_PLACEHOLDER; // what the empty editor says
 
-  // The tester's URL and mode are remembered between visits without any Save; the list of changes starts collapsed.
-  const tester = { url: getPref("testUrl", ""), mode: getPref("testMode", "all"), open: false };
+  // The tested URL is kept while the page is open, so it is still there when another rule is opened, but it is not stored.
+  // The mode is remembered between visits. The list of changes starts collapsed.
+  const tester = { url: "", mode: getPref("testMode", "all"), open: false };
 
   // --- Drawing ---
 
@@ -352,7 +353,6 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
 
     if (field.dataset.testUrl !== undefined) {
       tester.url = field.value;
-      setPref("testUrl", tester.url);
       refreshTester();
       return;
     }

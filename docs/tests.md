@@ -117,7 +117,7 @@ If the page looks unstyled or shows an old version after a change, reload the ad
 3. "What changed (2)" is collapsed, with space above it. Open it: `✓ Changed: visibility: public → private  by **Example visibility**` with a green ✓, and `✕ Removed: utm_source=x  by **Tracking**` with a red ✕, each part separated by a space, the rule name in bold, and no coloured background. Reload the page: the list is collapsed again.
 4. Choose "Current rule": the result keeps `utm_source=x`, only the open rule's change is listed, and the lines no longer name a rule.
 5. The result follows what you type, in the URL field and in the rule's fields, without saving. Change the replacement to `internal`: the result changes at once, and Revert brings the old result back.
-6. Reload the page, or close and reopen it: the URL and the mode are still there, and no Save was pressed.
+6. Open another rule in the list: the URL you typed is still in the URL field, and the result is for that rule. Choose "Current rule", then reload the page: the "Current rule" choice is kept.
 7. Notes: test `https://example.net/new?visibility=public` with the Example rule: "This rule doesn't apply to this URL: the domain doesn't match." Give the rule a path `/settings` and test the Example URL: "...the path doesn't match." Put an invalid regex in a pattern: "This rule has errors, so it isn't applied." Switch the rule off in the list and use "All rules": "This rule is switched off in the list, so it isn't applied."
 8. A URL that is not http or https (`example.com/new`, `ftp://...`) shows "Enter a full URL starting with http:// or https://." A URL with no matching parameters shows the URL and "No changes."
 
