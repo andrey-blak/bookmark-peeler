@@ -638,13 +638,24 @@ body.collapsed .rule.unsaved .main::after {
 }
 
 .menu summary {
-  padding: 4px 10px;
   border: 1px solid ButtonBorder;
   border-radius: 4px;
   background: ButtonFace;
   color: ButtonText;
   cursor: pointer;
   list-style: none;
+}
+
+/* The header buttons, and the Presets summary that looks like one, all have the same height.
+   Only the direct children: the entries of the Presets menu are buttons too, with their own layout. */
+.tools > button,
+.menu > summary {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 12px;
+  font: inherit;
 }
 
 .menu summary::-webkit-details-marker {
