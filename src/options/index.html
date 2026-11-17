@@ -10,6 +10,15 @@
 <body>
   <header>
     <h1>Bookmark Peeler</h1>
+    <div class="tools">
+      <details id="presets" class="menu">
+        <summary>Presets</summary>
+        <div id="presets-list" class="menu-list"></div>
+      </details>
+      <button id="import" type="button" title="Add rules from a file, or replace the current ones">Import…</button>
+      <button id="export" type="button" title="Save all rules to a file">Export</button>
+      <input id="import-file" type="file" accept=".json,application/json" hidden>
+    </div>
   </header>
 
   <main>
@@ -32,6 +41,18 @@
     <span id="toast-text"></span>
     <button id="toast-undo" type="button" title="Ctrl+Z">Undo</button>
   </div>
+
+  <dialog id="import-dialog" aria-labelledby="import-title">
+    <form method="dialog">
+      <p id="import-title"><strong>Import rules</strong></p>
+      <ul id="import-lines" class="lines"></ul>
+      <div class="buttons">
+        <button value="add" autofocus>Add to my rules</button>
+        <button value="replace">Replace my rules</button>
+        <button value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="unsaved" aria-labelledby="unsaved-text">
     <form method="dialog">

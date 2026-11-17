@@ -132,3 +132,8 @@ A rule with only warnings is applied.
 - Empty storage, or data without `schemaVersion`, gives the defaults.
 - A `schemaVersion` newer than the code knows, or not a positive integer, is reported as unsupported and is never read or overwritten.
 - Unknown fields are dropped, and invalid values are kept so that validation can report them.
+
+## Export file
+
+Export writes the same three keys as above (`schemaVersion`, `settings`, `rules`) as indented JSON, to `bookmark-peeler-rules.json`.
+Import reads a file the way storage is loaded, and refuses a file that is not JSON, has no `schemaVersion` or `rules`, or has an unsupported `schemaVersion`.

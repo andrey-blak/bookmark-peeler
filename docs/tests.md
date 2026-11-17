@@ -11,7 +11,7 @@ The tests are in `tests/unit/`, one file per module:
 
 - `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
 - `src/background/`: what happens when a bookmark is created, with a fake browser.
-- `src/options/`: the logic of the rule list, the rule editor and the "Try it" panel, without DOM.
+- `src/options/`: the logic of the rule list, the rule editor, the "Try it" panel, import and export, and the presets, without DOM.
 - The manifest: permissions, background page, options page and icons.
 
 Not covered by them: the pages as drawn in Firefox (layout, focus, drag and drop, dialogs) and the real bookmark events.
@@ -126,3 +126,17 @@ If the page looks unstyled or shows an old version after a change, reload the ad
 1. Collapse the list with the « button: it becomes a narrow strip with one square per rule showing its initial, with a "+" for Add rule at the top and » to expand. The selected rule is highlighted, a rule with an error has a red border, and clicking a square opens that rule. Reload: it stays collapsed.
 2. Press `[` with the focus on a rule or on the page: the list expands again. Typing `[` in a text field (for example in a regex) must not collapse it.
 3. In the collapsed list, Up and Down, Ctrl+Up and Ctrl+Down, Delete, Enter and Space still work on the focused square.
+
+### Main page: Import, Export and Presets
+
+Have two or three rules, for example "Tracking parameters" and the GitHub visibility rule, and one rule with an error.
+
+1. The header has Presets, Import… and Export buttons on the right, and the rule list has no import or export buttons.
+2. Export: a file `bookmark-peeler-rules.json` is downloaded. Open it: it holds `schemaVersion`, `settings` and all the rules, indented.
+3. Import…: the file chooser shows JSON files by default. Choose the exported file: a dialog says how many rules it holds, how many have errors, and how many already exist.
+4. "Add to my rules": the imported rules are appended, the existing ones stay, and none has the id of another (open the exported file and the stored data to compare if you wish). An Undo message appears; Undo (or Ctrl+Z) removes the added rules again.
+5. Change the settings in the console (`await browser.storage.local.set({ settings: { cleanOnEdit: true } })`), then choose "Add to my rules" again: the settings stay as they were. Choose "Replace my rules" with a file that has `"cleanOnEdit": false`: the rules and the settings are those of the file, and Undo brings back the previous rules and the previous settings.
+6. Cancel, or Esc, in the dialog imports nothing. With unsaved changes in the editor, choosing Add or Replace asks Save, Discard or Cancel first.
+7. Files that must be refused, each with a short message at the bottom of the page that disappears by itself after a few seconds, nothing left above the list, and no change: a text file, a file with `{ broken`, a JSON file such as `[]` or `{}`, and a rules file with `"schemaVersion": 2`.
+8. Presets opens a menu with "Tracking parameters" and "YouTube share parameters", each with a one-line description. It closes with Esc and with a click elsewhere. Choosing one opens it in the editor as a new unsaved rule, named like the preset, with its actions; Save stores it. With unsaved changes in the editor, the usual Save, Discard or Cancel prompt appears.
+9. Try the tracking preset in "Try it" with `https://example.com/?a=1&utm_source=x&fbclid=y`: the result is `https://example.com/?a=1`.

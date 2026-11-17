@@ -23,7 +23,9 @@
   - Keyboard: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete (not while typing in a field). Dragging a rule also reorders. The page does not print these shortcuts; they are documented in [tests.md](tests.md).
   - A new rule starts as an unsaved draft: scope Domain, empty domain, no actions. Errors and warnings are shown only after the user has typed something.
   - In the replace action the pattern fields are labelled "Parameter" and "Value", and there is one "Case sensitive" checkbox, on by default.
-  - Import and export buttons do not go into the rule list's sidebar; their place is decided in step 11.
+  - Presets, Import and Export are buttons in the page header, outside the rule list. The label is just "Export"; it exports the rules and the settings.
+  - Export saves the stored format (see [storage.md](storage.md)) as `bookmark-peeler-rules.json`. Import opens a file chooser filtered to JSON, refuses files that are not JSON, not a rules file or from a newer version (with a short message at the bottom of the page that goes away by itself after a few seconds, like a toast), and otherwise shows how many rules the file holds, how many have errors and how many ids already exist. "Add to my rules" appends them (clashing ids get new ones) and keeps the current settings; "Replace my rules" replaces the rules and the settings with the file's. Both show the Undo message, so Undo (Ctrl+Z) restores the previous rules and settings.
+  - The Presets menu offers "Tracking parameters" (all sites: `utm_*`, `fbclid`, `gclid`, `dclid`, `msclkid`, `mc_cid`, `mc_eid`, `igshid`, `yclid`, `twclid`) and "YouTube share parameters" (`si`, `pp`, `feature`). A preset opens as a new unsaved rule, to review and Save.
   - Ctrl+S saves the rule in the editor (also while typing in a field).
   - Selecting another rule, adding one or duplicating while the editor has unsaved changes asks "Save", "Discard" or "Cancel". Closing the tab with unsaved changes shows the browser's warning.
   - Save always works: a rule with errors is stored but not applied, and the editor says so. Revert goes back to the stored version; for a new rule it clears the form.
@@ -48,7 +50,7 @@
 9. Main page: rule editor with the Add rule button, Save (Ctrl+S) and Revert, Duplicate, validation messages, and the unsaved changes prompt. (done; checked manually in Firefox, except the two fixes made after the check: the Add action menu and the messages shown on opening a stored rule)
 9a. Refactoring: the replace action's `name` field and the remove action's `param` field are now both `parameter`, and `param`/`params` in the code are `parameter`/`parameters`, so a rule's own `name` is not confused with a parameter. Rules saved with the old fields lose their parameter filter or their remove action and have to be created again; nothing has been released yet, so there is no migration.
 10. Main page: live URL tester, collapsible rule list.
-11. Import / export (placed outside the rule list), presets.
+11. Import / export (placed outside the rule list), presets. (done)
 12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
 13. Optional: sync rules between devices with `storage.sync`.
     - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.

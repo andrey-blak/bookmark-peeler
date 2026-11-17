@@ -19,10 +19,13 @@ import {
 } from "./rule-list.js";
 import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
 import { createEditor } from "./editor.js";
+import { exportFile, parseImport, summarizeImport, mergeImport } from "./transfer.js";
+import { PRESETS, presetDraft } from "./presets.js";
 import { getPref, setPref } from "./prefs.js";
 
 const STORAGE_KEYS = ["schemaVersion", "settings", "rules"];
 const UNDO_MS = 8000;
+const MESSAGE_MS = 6000;
 
 const $ = id => document.getElementById(id);
 const list = $("rules");
@@ -32,7 +35,8 @@ let selectedId = null; // the stored rule open in the editor; null for a new dra
 let focusId = null; // rule whose main button gets the focus after the next render
 let draggingId = null;
 let dropTarget = null; // { id, after }
-let undo = null; // { removed, timer }
+let undo = null; // { restore }: how to take back the last delete or import, while its message is shown
+let toastTimer = null;
 
 const editor = createEditor($("editor"), {
   onSave: saveEditor,
@@ -96,15 +100,18 @@ function syncEditor() {
   }
 }
 
-/** Returns whether the rules were stored. */
-async function save(rules, { rerender = true } = {}) {
-  const next = { ...config, rules };
+/** Stores the rules, with the settings as they are. Returns whether they were stored. */
+async function save(rules, options) {
+  return saveConfig({ ...config, rules }, options);
+}
 
+/** Stores a whole config (rules and settings). Returns whether it was stored. */
+async function saveConfig(next, { rerender = true } = {}) {
   try {
     await browser.storage.local.set(next);
   } catch (error) {
     console.error("Bookmark Peeler:", error);
-    showNotice("Couldn't save your changes. Reload the page and try again.");
+    showMessage("Couldn't save your changes. Reload the page and try again.");
     return false;
   }
 
@@ -359,15 +366,10 @@ async function deleteRule(id) {
   focusId = selectedId;
 
   await save(rules);
-  showUndo(removed);
+  showUndo(`Deleted “${ruleTitle(removed.rule)}”.`, () => restoreDeleted(removed));
 }
 
-async function undoDelete() {
-  if (!undo) return;
-
-  const { removed } = undo;
-  hideUndo();
-
+async function restoreDeleted(removed) {
   // The restored rule is opened only when that does not throw away what is in the editor.
   const open = !editor.isDirty() && !editor.isNew;
   if (!(await save(restoreRule(config.rules, removed)))) return;
@@ -388,19 +390,145 @@ async function move(id, to) {
   await save(moveRule(config.rules, from, to));
 }
 
-// --- Undo message ---
+// --- Messages at the bottom of the page ---
 
-function showUndo(removed) {
-  hideUndo();
-  $("toast-text").textContent = `Deleted “${ruleTitle(removed.rule)}”.`;
-  $("toast").hidden = false;
-  undo = { removed, timer: setTimeout(hideUndo, UNDO_MS) };
+/**
+ * Shows a short message that goes away by itself.
+ * With `restore` it has an Undo button, and Ctrl+Z calls `restore` while the message is shown.
+ */
+function showToast(text, { restore = null, ms = MESSAGE_MS } = {}) {
+  clearTimeout(toastTimer);
+
+  const toast = $("toast");
+  $("toast-text").textContent = text;
+  $("toast-undo").hidden = restore === null;
+  toast.setAttribute("role", restore === null ? "alert" : "status");
+  toast.hidden = false;
+
+  undo = restore === null ? null : { restore };
+  toastTimer = setTimeout(hideToast, ms);
 }
 
-function hideUndo() {
-  if (undo) clearTimeout(undo.timer);
+const showMessage = text => showToast(text);
+const showUndo = (text, restore) => showToast(text, { restore, ms: UNDO_MS });
+
+function hideToast() {
+  clearTimeout(toastTimer);
   undo = null;
   $("toast").hidden = true;
+}
+
+async function runUndo() {
+  if (!undo) return;
+
+  const { restore } = undo;
+  hideToast();
+  await restore();
+}
+
+// --- Export, import and presets ---
+
+function download(file) {
+  const url = URL.createObjectURL(new Blob([file.text], { type: file.mime }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const IMPORT_PROBLEMS = {
+  "not-json": "That file isn't valid JSON, so it can't be imported.",
+  "not-config": "That file isn't a Bookmark Peeler rules file.",
+  unsupported: "That file was saved by a newer version of Bookmark Peeler, so it can't be imported.",
+};
+
+const count = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
+
+/** Shows what the file holds and returns the choice: "add", "replace" or "cancel". */
+function askImport(filename, summary) {
+  const lines = [`${filename}: ${count(summary.total, "rule", "rules")}.`];
+  if (summary.withErrors > 0) {
+    lines.push(`${count(summary.withErrors, "has errors and isn't", "have errors and aren't")} applied until fixed.`);
+  }
+  if (summary.clashes > 0) {
+    lines.push(`${count(summary.clashes, "rule already exists", "rules already exist")}; when added, they get new ids.`);
+  }
+
+  $("import-lines").replaceChildren(...lines.map(text => {
+    const item = document.createElement("li");
+    item.textContent = text;
+    return item;
+  }));
+
+  const dialog = $("import-dialog");
+  return new Promise(resolve => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "cancel"), { once: true });
+    dialog.returnValue = "";
+    dialog.showModal();
+  });
+}
+
+async function importRules(file) {
+  if (!config) return;
+
+  const parsed = parseImport(await file.text());
+  if (!parsed.ok) {
+    showMessage(IMPORT_PROBLEMS[parsed.reason]);
+    return;
+  }
+
+  const choice = await askImport(file.name, summarizeImport(parsed.config, config.rules));
+  if (choice !== "add" && choice !== "replace") return;
+  if (!(await confirmLeave())) return;
+
+  const previous = config;
+  const next = choice === "add"
+    ? { ...config, rules: mergeImport(config.rules, parsed.config.rules) }
+    : parsed.config; // Replace takes the settings of the file too; Add keeps the current ones.
+  if (!(await saveConfig(next, { rerender: false }))) return;
+
+  selectedId = null;
+  editor.close();
+  render();
+  showUndo(`Imported ${count(parsed.config.rules.length, "rule", "rules")}.`, () => restoreConfig(previous));
+}
+
+async function restoreConfig(previous) {
+  if (!(await saveConfig(previous, { rerender: false }))) return;
+
+  selectedId = null;
+  editor.close();
+  render();
+}
+
+async function openPreset(id) {
+  const preset = PRESETS.find(p => p.id === id);
+  if (!config || !preset || !(await confirmLeave())) return;
+
+  selectedId = null;
+  editor.open(presetDraft(preset), { isNew: true });
+  render();
+  editor.focus("name");
+}
+
+function renderPresets() {
+  $("presets-list").replaceChildren(...PRESETS.map(preset => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "menu-item";
+    button.dataset.preset = preset.id;
+
+    const title = document.createElement("span");
+    title.textContent = preset.title;
+    const description = document.createElement("small");
+    description.textContent = preset.description;
+
+    button.append(title, description);
+    return button;
+  }));
 }
 
 // --- Events ---
@@ -453,7 +581,7 @@ document.addEventListener("keydown", event => {
   if (command.type === "undo") {
     if (undo && !event.target.closest(EDITABLE)) {
       event.preventDefault();
-      undoDelete();
+      runUndo();
     }
     return;
   }
@@ -546,8 +674,38 @@ list.addEventListener("dragend", () => {
 });
 
 $("add").addEventListener("click", addRule);
+
+$("export").addEventListener("click", () => {
+  if (config) download(exportFile(config));
+});
+
+$("import").addEventListener("click", () => {
+  if (config) $("import-file").click();
+});
+
+$("import-file").addEventListener("change", event => {
+  const [file] = event.target.files;
+  event.target.value = ""; // so that the same file can be chosen again
+  if (file) importRules(file);
+});
+
+$("presets-list").addEventListener("click", event => {
+  const button = event.target.closest("[data-preset]");
+  if (!button) return;
+
+  $("presets").open = false;
+  openPreset(button.dataset.preset);
+});
+
+// The presets menu closes on a click elsewhere and on Escape.
+document.addEventListener("click", event => {
+  if (!event.target.closest("#presets")) $("presets").open = false;
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") $("presets").open = false;
+});
 $("collapse").addEventListener("click", toggleCollapsed);
-$("toast-undo").addEventListener("click", undoDelete);
+$("toast-undo").addEventListener("click", runUndo);
 
 window.addEventListener("beforeunload", event => {
   if (editor.isDirty()) event.preventDefault();
@@ -558,6 +716,7 @@ browser.storage.onChanged.addListener((changes, area) => {
 });
 
 applyCollapsed();
+renderPresets();
 editor.close();
 load().catch(error => {
   console.error("Bookmark Peeler:", error);

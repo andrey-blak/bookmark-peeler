@@ -28,6 +28,11 @@ body {
 }
 
 header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--line);
 }
@@ -614,4 +619,80 @@ body.collapsed .rule[data-status="warning"] .main {
 body.collapsed .rule.unsaved .main::after {
   content: "•";
   color: AccentColor;
+}
+
+/* Header tools: Presets menu, Import, Export */
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu summary {
+  padding: 4px 10px;
+  border: 1px solid ButtonBorder;
+  border-radius: 4px;
+  background: ButtonFace;
+  color: ButtonText;
+  cursor: pointer;
+  list-style: none;
+}
+
+.menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu summary::after {
+  content: " ▾";
+}
+
+.menu-list {
+  position: absolute;
+  inset-inline-end: 0;
+  z-index: 10;
+  min-width: 300px;
+  margin-top: 4px;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: Canvas;
+  color: CanvasText;
+}
+
+.menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: rgba(128, 128, 128, 0.18);
+}
+
+.menu-item small {
+  display: block;
+  color: GrayText;
+}
+
+dialog .lines {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  color: GrayText;
+}
+
+dialog .lines li {
+  padding: 2px 0;
 }
