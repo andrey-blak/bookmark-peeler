@@ -80,6 +80,7 @@ main {
 /* Rule list */
 
 .rules {
+  user-select: none; /* Shift+click selects rules, not text */
   margin: 0;
   padding: 0;
   list-style: none;

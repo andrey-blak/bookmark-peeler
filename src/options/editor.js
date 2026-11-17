@@ -19,6 +19,8 @@ import { testRules, describeChange } from "./tester.js";
 import { getPref, setPref } from "./prefs.js";
 import { el } from "./dom.js";
 
+const DEFAULT_PLACEHOLDER = "Select a rule to edit it, or add a new one.";
+
 const parsePath = key => key.split(".").map(part => (/^\d+$/.test(part) ? Number(part) : part));
 const clone = value => structuredClone(value);
 
@@ -36,6 +38,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
   let touched = new Set(); // keys of the fields the user has changed; issues are shown only for these
   let showAll = false; // after Save every issue is shown
   let justSaved = false;
+  let placeholder = DEFAULT_PLACEHOLDER; // what the empty editor says
 
   // The tester's URL and mode are remembered between visits without any Save; the list of changes starts collapsed.
   const tester = { url: getPref("testUrl", ""), mode: getPref("testMode", "all"), open: false };
@@ -232,7 +235,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
 
   function draw() {
     if (draft === null) {
-      root.replaceChildren(el("p", { className: "placeholder" }, "Select a rule to edit it, or add a new one."));
+      root.replaceChildren(el("p", { className: "placeholder" }, placeholder));
       return;
     }
 
@@ -410,10 +413,12 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
       onChange();
     },
 
-    close() {
+    /** Empties the editor; `message` is what it says instead of the usual invitation, for example "3 rules selected." */
+    close(message = DEFAULT_PLACEHOLDER) {
       draft = null;
       baseline = null;
       isNew = false;
+      placeholder = message;
       draw();
       onChange();
     },

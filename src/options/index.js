@@ -4,11 +4,12 @@
 import { readConfig, validateRule } from "../core/schema.js";
 import {
   moveRule,
-  dropIndex,
+  moveRules,
+  moveRulesTo,
   upsertRule,
-  removeRule,
-  restoreRule,
-  setEnabled,
+  removeRules,
+  restoreRules,
+  setEnabledMany,
   ruleTitle,
   ruleSubtitle,
   ruleStatus,
@@ -18,6 +19,7 @@ import {
   selectionAfterRemove,
 } from "./rule-list.js";
 import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
+import { clickSelection, extendSelection } from "./selection.js";
 import { createEditor } from "./editor.js";
 import { exportFile, parseImport, summarizeImport, mergeImport } from "./transfer.js";
 import { PRESETS, presetDraft } from "./presets.js";
@@ -32,10 +34,20 @@ const MESSAGE_MS = 6000;
 const $ = id => document.getElementById(id);
 const list = $("rules");
 
+/** One rule selected and open in the editor, or none. */
+function setSelected(id) {
+  selectedId = id;
+  selectedIds = id === null ? [] : [id];
+  anchorId = id;
+}
+
 let config = null; // what was loaded; null when it cannot be edited
-let selectedId = null; // the stored rule open in the editor; null for a new draft or nothing
+let selectedId = null; // the stored rule open in the editor; null for a new draft, nothing, or several rules
+let selectedIds = []; // the selected rules, in list order: one when selectedId is set, several for a multiple selection
+let anchorId = null; // the rule a Shift range starts from
 let focusId = null; // rule whose main button gets the focus after the next render
-let draggingId = null;
+let draggingId = null; // the row the drag started on
+let draggingIds = []; // the rules that move with it: the whole selection when the row is part of one
 let dropTarget = null; // { id, after }
 let undo = null; // { restore }: how to take back the last delete or import, while its message is shown
 let toastTimer = null;
@@ -110,7 +122,7 @@ async function load({ onlyIfChanged = false } = {}) {
 
   if (loaded.status !== "ok") {
     config = null;
-    selectedId = null;
+    setSelected(null);
     editor.close();
     showNotice("These rules were saved by a newer version of Bookmark Peeler, so they can't be shown or changed here.");
     render();
@@ -120,6 +132,7 @@ async function load({ onlyIfChanged = false } = {}) {
   if (onlyIfChanged && config && JSON.stringify(loaded.config) === JSON.stringify(config)) return;
 
   config = loaded.config;
+  selectedIds = selectedIds.filter(id => config.rules.some(rule => rule.id === id));
   showNotice("");
   syncEditor();
   render();
@@ -133,7 +146,7 @@ function syncEditor() {
   if (rule) {
     editor.reload(rule);
   } else if (!editor.isDirty()) {
-    selectedId = null;
+    setSelected(null);
     editor.close();
   }
 }
@@ -185,7 +198,7 @@ function renderRule(rule) {
   item.className = "rule";
   item.dataset.id = rule.id;
   item.draggable = true;
-  item.classList.toggle("selected", rule.id === selectedId);
+  item.classList.toggle("selected", selectedIds.includes(rule.id));
   item.classList.toggle("disabled", rule.enabled === false);
 
   const grip = document.createElement("span");
@@ -206,6 +219,7 @@ function renderRule(rule) {
   main.title = title;
   main.setAttribute("aria-label", subtitle ? `${title}, ${subtitle}` : title);
   if (rule.id === selectedId) main.setAttribute("aria-current", "true");
+  else if (selectedIds.length > 1 && selectedIds.includes(rule.id)) main.setAttribute("aria-pressed", "true");
 
   const titleEl = document.createElement("span");
   titleEl.className = "title";
@@ -329,39 +343,69 @@ async function saveEditor() {
   const { rules } = upsertRule(config.rules, rule);
   if (!(await save(rules, { rerender: false }))) return;
 
-  selectedId = rule.id;
+  setSelected(rule.id);
   editor.markSaved(config.rules.find(r => r.id === rule.id));
   render();
 }
 
-async function openRule(id, { focus = false } = {}) {
+/**
+ * Makes `state` ({ ids, anchor }) the selection. One rule is opened in the editor; none or several close it,
+ * after the usual Save, Discard or Cancel question when the editor has unsaved changes.
+ */
+async function applySelection(state, focusOn = null) {
   if (!config) return;
   showView("rules");
 
-  if (id === selectedId && editor.isOpen) {
-    if (focus) {
-      focusId = id;
-      render();
-    }
+  const single = state.ids.length === 1 ? state.ids[0] : null;
+
+  if (single !== null && single === selectedId && editor.isOpen) {
+    selectedIds = state.ids;
+    anchorId = state.anchor;
+    if (focusOn) focusId = focusOn;
+    render();
     return;
   }
 
   if (!(await confirmLeave())) return;
 
-  const rule = config.rules.find(r => r.id === id);
-  if (!rule) return;
+  if (single !== null) {
+    const rule = config.rules.find(r => r.id === single);
+    if (!rule) return;
 
-  selectedId = id;
-  editor.open(rule);
-  if (focus) focusId = id;
+    setSelected(single);
+    anchorId = state.anchor;
+    editor.open(rule);
+  } else {
+    selectedId = null;
+    selectedIds = state.ids;
+    anchorId = state.anchor;
+    editor.close(state.ids.length > 1 ? `${state.ids.length} rules selected.` : undefined);
+  }
+
+  if (focusOn) focusId = focusOn;
   render();
+}
+
+async function openRule(id, { focus = false } = {}) {
+  await applySelection({ ids: [id], anchor: id }, focus ? id : null);
+}
+
+/** A click on a rule: plain selects it, Ctrl+click adds or removes it, Shift+click selects a range. */
+function selectWithMouse(id, event) {
+  if (!config) return;
+
+  const state = clickSelection(config.rules, { ids: selectedIds, anchor: anchorId }, id, {
+    shift: event.shiftKey,
+    ctrl: event.ctrlKey || event.metaKey,
+  });
+  applySelection(state, id);
 }
 
 async function addRule() {
   if (!config || !(await confirmLeave())) return;
 
   showView("rules");
-  selectedId = null;
+  setSelected(null);
   editor.open(newDraft(), { isNew: true });
   render();
   editor.focus("name");
@@ -372,7 +416,7 @@ async function duplicateRule() {
   if (!config || !snapshot || !(await confirmLeave())) return;
 
   showView("rules");
-  selectedId = null;
+  setSelected(null);
   editor.open(duplicateDraft(snapshot), { isNew: true });
   render();
   editor.focus("name");
@@ -380,48 +424,63 @@ async function duplicateRule() {
 
 // --- List actions ---
 
-async function toggleRule(id, enabled) {
-  const index = indexOfId(id);
-  if (index < 0) return;
+async function toggleRules(ids, enabled) {
+  const known = ids.filter(id => indexOfId(id) >= 0);
+  if (known.length === 0) return;
 
-  await save(setEnabled(config.rules, index, enabled), { rerender: false });
+  await save(setEnabledMany(config.rules, known, enabled), { rerender: false });
 
-  const item = list.querySelector(`[data-id="${CSS.escape(id)}"]`);
-  item?.classList.toggle("disabled", !enabled);
-  const checkbox = item?.querySelector('input[type="checkbox"]');
-  if (checkbox) checkbox.checked = enabled;
+  for (const id of known) {
+    const item = list.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    item?.classList.toggle("disabled", !enabled);
+    const checkbox = item?.querySelector('input[type="checkbox"]');
+    if (checkbox) checkbox.checked = enabled;
+  }
 }
 
-async function deleteRule(id) {
-  const index = indexOfId(id);
-  if (index < 0) return;
+async function deleteRules(ids) {
+  const { rules, removed } = removeRules(config.rules, ids);
+  if (removed.length === 0) return;
 
-  const { rules, removed } = removeRule(config.rules, index);
-
-  // Deleting the open rule drops its unsaved changes and opens the next rule.
-  if (id === selectedId) {
-    const next = selectionAfterRemove(index, rules.length);
-    selectedId = next < 0 ? null : rules[next].id;
-    if (next < 0) editor.close();
-    else editor.open(rules[next]);
+  // Deleting selected rules drops their unsaved changes and opens the rule that takes their place.
+  if (removed.some(({ rule }) => selectedIds.includes(rule.id))) {
+    const next = selectionAfterRemove(removed[0].index, rules.length);
+    if (next < 0) {
+      setSelected(null);
+      editor.close();
+    } else {
+      setSelected(rules[next].id);
+      editor.open(rules[next]);
+    }
   }
   focusId = selectedId;
 
   await save(rules);
-  showUndo(`Deleted “${ruleTitle(removed.rule)}”.`, () => restoreDeleted(removed));
+
+  const text = removed.length === 1
+    ? `Deleted “${ruleTitle(removed[0].rule)}”.`
+    : `Deleted ${removed.length} rules.`;
+  showUndo(text, () => restoreDeleted(removed));
 }
 
 async function restoreDeleted(removed) {
-  // The restored rule is opened only when that does not throw away what is in the editor.
-  const open = !editor.isDirty() && !editor.isNew;
-  if (!(await save(restoreRule(config.rules, removed)))) return;
+  // The restored rules are selected only when that does not throw away what is in the editor.
+  const select = !editor.isDirty() && !editor.isNew;
+  if (!(await save(restoreRules(config.rules, removed)))) return;
+  if (!select) return;
 
-  if (open) {
-    selectedId = removed.rule.id;
-    focusId = selectedId;
-    editor.open(config.rules.find(r => r.id === selectedId));
-    render();
+  const ids = removed.map(({ rule }) => rule.id);
+  if (ids.length === 1) {
+    setSelected(ids[0]);
+    editor.open(config.rules.find(r => r.id === ids[0]));
+  } else {
+    selectedId = null;
+    selectedIds = ids;
+    anchorId = ids[0];
+    editor.close(`${ids.length} rules selected.`);
   }
+  focusId = ids[0];
+  render();
 }
 
 async function move(id, to) {
@@ -430,6 +489,12 @@ async function move(id, to) {
 
   focusId = id;
   await save(moveRule(config.rules, from, to));
+}
+
+/** Ctrl+Up and Ctrl+Down with several rules selected: they all move by one, and the focus stays on `id`. */
+async function moveSelected(ids, delta, id) {
+  focusId = id;
+  await save(moveRules(config.rules, ids, delta));
 }
 
 // --- Messages at the bottom of the page ---
@@ -532,7 +597,7 @@ async function importRules(file) {
     : parsed.config; // Replace takes the settings of the file too; Add keeps the current ones.
   if (!(await saveConfig(next, { rerender: false }))) return;
 
-  selectedId = null;
+  setSelected(null);
   editor.close();
   render();
   showUndo(`Imported ${count(parsed.config.rules.length, "rule", "rules")}.`, () => restoreConfig(previous));
@@ -541,7 +606,7 @@ async function importRules(file) {
 async function restoreConfig(previous) {
   if (!(await saveConfig(previous, { rerender: false }))) return;
 
-  selectedId = null;
+  setSelected(null);
   editor.close();
   render();
 }
@@ -551,7 +616,7 @@ async function openPreset(id) {
   if (!config || !preset || !(await confirmLeave())) return;
 
   showView("rules");
-  selectedId = null;
+  setSelected(null);
   editor.open(presetDraft(preset), { isNew: true });
   render();
   editor.focus("name");
@@ -583,16 +648,16 @@ list.addEventListener("click", event => {
   if (!item || item.dataset.draft !== undefined) return;
 
   if (event.target.closest(".delete")) {
-    deleteRule(item.dataset.id);
+    deleteRules([item.dataset.id]);
   } else if (event.target.closest(".main")) {
-    openRule(item.dataset.id, { focus: true });
+    selectWithMouse(item.dataset.id, event);
   }
 });
 
 list.addEventListener("change", event => {
   const item = itemOf(event.target);
   if (item && event.target.matches('input[type="checkbox"]')) {
-    toggleRule(item.dataset.id, event.target.checked);
+    toggleRules([item.dataset.id], event.target.checked);
   }
 });
 
@@ -641,6 +706,9 @@ document.addEventListener("keydown", event => {
   const onDeleteButton = event.target.closest(".delete") !== null;
   const onSwitch = event.target.matches('input[type="checkbox"]');
 
+  // With several rules selected, Ctrl+Up, Ctrl+Down, Delete, Enter and Space act on all of them, if the focused one is among them.
+  const group = selectedIds.length > 1 && selectedIds.includes(id) ? selectedIds : null;
+
   switch (command.type) {
     case "select": {
       event.preventDefault();
@@ -649,21 +717,31 @@ document.addEventListener("keydown", event => {
       break;
     }
 
+    case "extend": {
+      event.preventDefault();
+      const base = selectedIds.includes(id) ? { ids: selectedIds, anchor: anchorId } : { ids: [id], anchor: id };
+      const next = extendSelection(config.rules, base, id, command.delta);
+      applySelection({ ids: next.ids, anchor: next.anchor }, next.focus);
+      break;
+    }
+
     case "move":
       event.preventDefault();
-      move(id, Math.max(0, Math.min(index + command.delta, config.rules.length - 1)));
+      if (group) moveSelected(group, command.delta, id);
+      else move(id, Math.max(0, Math.min(index + command.delta, config.rules.length - 1)));
       break;
 
     case "delete":
       event.preventDefault();
-      deleteRule(id);
+      deleteRules(group ?? [id]);
       break;
 
     case "toggle":
       // The delete button keeps its own Enter and Space, and a switch already toggles itself on Space.
       if (onDeleteButton || (onSwitch && event.key === " ")) return;
       event.preventDefault();
-      toggleRule(id, config.rules[index].enabled === false);
+      // Every selected rule gets the opposite of the state of the focused one.
+      toggleRules(group ?? [id], config.rules[index].enabled === false);
       break;
   }
 });
@@ -678,15 +756,33 @@ list.addEventListener("dragstart", event => {
   const item = itemOf(event.target);
   if (!item || item.dataset.draft !== undefined) return;
 
-  draggingId = item.dataset.id;
+  const id = item.dataset.id;
+  draggingId = id;
+  draggingIds = selectedIds.length > 1 && selectedIds.includes(id) ? [...selectedIds] : [id];
+
   event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", draggingId);
-  item.classList.add("dragging");
+  event.dataTransfer.setData("text/plain", id);
+  for (const draggedId of draggingIds) {
+    list.querySelector(`[data-id="${CSS.escape(draggedId)}"]`)?.classList.add("dragging");
+  }
 });
+
+function clearDropLine() {
+  for (const other of list.querySelectorAll(".drop-before, .drop-after")) {
+    other.classList.remove("drop-before", "drop-after");
+  }
+}
 
 list.addEventListener("dragover", event => {
   const item = itemOf(event.target);
   if (!item || item.dataset.draft !== undefined || draggingId === null) return;
+
+  // Dropping on one of the rules that are being dragged does nothing, so it is not offered.
+  if (draggingIds.includes(item.dataset.id)) {
+    dropTarget = null;
+    clearDropLine();
+    return;
+  }
 
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
@@ -695,9 +791,7 @@ list.addEventListener("dragover", event => {
   const after = event.clientY > box.top + box.height / 2;
   dropTarget = { id: item.dataset.id, after };
 
-  for (const other of list.querySelectorAll(".drop-before, .drop-after")) {
-    other.classList.remove("drop-before", "drop-after");
-  }
+  clearDropLine();
   item.classList.add(after ? "drop-after" : "drop-before");
 });
 
@@ -705,13 +799,13 @@ list.addEventListener("drop", event => {
   event.preventDefault();
   if (draggingId === null || dropTarget === null) return;
 
-  const from = indexOfId(draggingId);
-  const over = indexOfId(dropTarget.id);
-  if (from >= 0 && over >= 0) move(draggingId, dropIndex(from, over, dropTarget.after));
+  focusId = draggingId;
+  save(moveRulesTo(config.rules, draggingIds, dropTarget.id, dropTarget.after));
 });
 
 list.addEventListener("dragend", () => {
   draggingId = null;
+  draggingIds = [];
   dropTarget = null;
   clearDropMarks();
 });

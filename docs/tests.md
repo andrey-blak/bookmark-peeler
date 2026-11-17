@@ -11,7 +11,7 @@ The tests are in `tests/unit/`, one file per module:
 
 - `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
 - `src/background/`: what happens when a bookmark is created or edited (including the guard against the add-on's own writes) and the bulk address changes, with a fake browser.
-- `src/options/`: the logic of the rule list, the rule editor, the "Try it" panel, import and export, the presets, and the scan and undo of "Clean existing bookmarks", without DOM.
+- `src/options/`: the logic of the rule list and of selecting several rules, the rule editor, the "Try it" panel, import and export, the presets, and the scan and undo of "Clean existing bookmarks", without DOM.
 - The manifest: permissions, background page, options page and icons.
 
 Not covered by them: the pages as drawn in Firefox (layout, focus, drag and drop, dialogs) and the real bookmark events.
@@ -163,3 +163,19 @@ Have some bookmarks with tracking parameters (for example `https://example.com/?
 7. Clean, then edit one cleaned bookmark's address by hand, then restore: that bookmark is left as you edited it, and the message says how many were left.
 8. With "Also clean when edited" ticked, clean existing bookmarks with a rule that changes its own output (see "Clean when edited" step 5): each bookmark is changed once.
 9. Reload the page after a clean: the "Restore" button is gone (it only lasts while the page is open).
+
+### Main page: selecting several rules
+
+Have six rules, A to F, in that order, some enabled and some switched off.
+
+1. Click B, then Shift+click D: B, C and D are highlighted and the editor says "3 rules selected." Text in the list is not selected by Shift+click.
+2. Ctrl+click F: it is added. Ctrl+click C: it is removed, leaving B, D and F. Ctrl+click D and F again until only B is left: the editor opens B. Ctrl+click B: nothing is selected, and the editor shows the usual invitation.
+3. Click C, then Shift+Down twice: C, D and E are selected and the focus is on E. Shift+Up once: C and D. Shift+Up three more times: the selection crosses over C and grows upwards to A and B, and stops at the top. A plain Up or Down selects a single rule again.
+4. With C, D and E selected: Ctrl+Up moves all three up by one, as a block, and the focus stays on the rule it was on. Ctrl+Down twice moves them down. At the top or the bottom of the list the block stops, and pressing again changes nothing.
+5. With A and D selected (Ctrl+click): Ctrl+Up leaves A at the top and moves D up one place at a time until it is next to A; then nothing moves.
+6. With rules selected, Delete removes them all. The next rule after the first deleted one is opened, and the message says "Deleted 3 rules." Undo, or Ctrl+Z, restores all of them at their old positions, including rules that were not next to each other.
+7. With several rules selected, Enter or Space on the focused one gives all of them the opposite of its state: if it was on, all are switched off. Click the switch of one rule in the selection: only that rule changes.
+8. The × button of a selected rule deletes only that rule, and the switch of a row changes only that row. Dragging a rule that is not part of the selection moves only that rule.
+9. With unsaved changes in the editor, Ctrl+click or Shift+click on another rule asks Save, Discard or Cancel. Cancel keeps the selection and the editor as they were.
+10. In the collapsed list the same clicks and keys work on the squares.
+11. Dragging several rules: select B and C (or B and E with Ctrl+click) and drag one of them over the list. All selected rules are shown as being dragged, and a line shows where they will land. Drop them between D and E: they land together in their order (B, C, or B, E). Dropping them on one of the selected rules, or on themselves, does nothing and shows no line. The selection stays after the drop. Reload: the order stays.

@@ -2,10 +2,14 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   moveRule,
-  dropIndex,
+  moveRulesTo,
   upsertRule,
   removeRule,
   restoreRule,
+  moveRules,
+  removeRules,
+  restoreRules,
+  setEnabledMany,
   setEnabled,
   scopeLabel,
   ruleTitle,
@@ -63,26 +67,55 @@ describe("moveRule", () => {
   });
 });
 
-describe("dropIndex", () => {
-  const dropped = (from, over, after) => ids(moveRule(abcd(), from, dropIndex(from, over, after)));
+describe("moveRulesTo", () => {
+  const abcdef = () => ["a", "b", "c", "d", "e", "f"].map(id => rule(id));
+  const dropped = (selected, over, after) => ids(moveRulesTo(abcdef(), selected, over, after)).join("");
 
-  test("dropping before a rule puts the dragged rule just in front of it", () => {
-    assert.deepEqual(dropped(0, 2, false), ["b", "a", "c", "d"]);
-    assert.deepEqual(dropped(3, 1, false), ["a", "d", "b", "c"]);
-    assert.deepEqual(dropped(3, 0, false), ["d", "a", "b", "c"]);
+  test("a single rule dropped before another goes just in front of it", () => {
+    assert.equal(dropped(["a"], "c", false), "bacdef");
+    assert.equal(dropped(["d"], "b", false), "adbcef");
+    assert.equal(dropped(["d"], "a", false), "dabcef");
   });
 
-  test("dropping after a rule puts the dragged rule just behind it", () => {
-    assert.deepEqual(dropped(0, 2, true), ["b", "c", "a", "d"]);
-    assert.deepEqual(dropped(3, 0, true), ["a", "d", "b", "c"]);
-    assert.deepEqual(dropped(0, 3, true), ["b", "c", "d", "a"]);
+  test("a single rule dropped after another goes just behind it", () => {
+    assert.equal(dropped(["a"], "c", true), "bcadef");
+    assert.equal(dropped(["d"], "a", true), "adbcef");
+    assert.equal(dropped(["a"], "f", true), "bcdefa");
   });
 
   test("dropping a rule next to itself changes nothing", () => {
-    assert.deepEqual(dropped(1, 1, false), ["a", "b", "c", "d"]);
-    assert.deepEqual(dropped(1, 1, true), ["a", "b", "c", "d"]);
-    assert.deepEqual(dropped(1, 0, true), ["a", "b", "c", "d"]);
-    assert.deepEqual(dropped(1, 2, false), ["a", "b", "c", "d"]);
+    assert.equal(dropped(["b"], "a", true), "abcdef");
+    assert.equal(dropped(["b"], "c", false), "abcdef");
+  });
+
+  test("a block of selected rules is dropped as a block, in its order", () => {
+    assert.equal(dropped(["b", "c"], "e", false), "adbcef");
+    assert.equal(dropped(["b", "c"], "e", true), "adebcf");
+    assert.equal(dropped(["d", "e"], "a", false), "deabcf");
+    assert.equal(dropped(["b", "c"], "f", true), "adefbc");
+  });
+
+  test("scattered selected rules are gathered at the drop position, in their order", () => {
+    assert.equal(dropped(["a", "c"], "e", true), "bdeacf");
+    assert.equal(dropped(["a", "f"], "c", false), "bafcde");
+  });
+
+  test("dropping on one of the selected rules changes nothing", () => {
+    assert.equal(dropped(["b", "c", "d"], "c", false), "abcdef");
+    assert.equal(dropped(["b", "c", "d"], "d", true), "abcdef");
+  });
+
+  test("an unknown target or an empty selection changes nothing", () => {
+    assert.equal(dropped(["b"], "zzz", false), "abcdef");
+    assert.equal(dropped([], "c", false), "abcdef");
+  });
+
+  test("keeps the rule objects, returns a new array and does not modify the input", () => {
+    const rules = abcdef();
+    const result = moveRulesTo(rules, ["a", "b"], "e", true);
+    assert.notEqual(result, rules);
+    assert.equal(result.find(r => r.id === "a"), rules[0]);
+    assert.equal(ids(rules).join(""), "abcdef");
   });
 });
 
@@ -239,6 +272,11 @@ describe("keyCommand", () => {
     assert.deepEqual(keyCommand({ key: "ArrowDown", ctrlKey: true }), { type: "move", delta: 1 });
   });
 
+  test("Shift+Up and Shift+Down extend the selection", () => {
+    assert.deepEqual(keyCommand({ key: "ArrowUp", shiftKey: true }), { type: "extend", delta: -1 });
+    assert.deepEqual(keyCommand({ key: "ArrowDown", shiftKey: true }), { type: "extend", delta: 1 });
+  });
+
   test("Delete deletes the rule", () => {
     assert.deepEqual(keyCommand({ key: "Delete" }), { type: "delete" });
   });
@@ -264,7 +302,7 @@ describe("keyCommand", () => {
   });
 
   test("other modifiers and other keys do nothing", () => {
-    assert.equal(keyCommand({ key: "ArrowUp", shiftKey: true }), null);
+    assert.equal(keyCommand({ key: "ArrowUp", ctrlKey: true, shiftKey: true }), null);
     assert.equal(keyCommand({ key: "ArrowUp", altKey: true }), null);
     assert.equal(keyCommand({ key: "ArrowDown", metaKey: true }), null);
     assert.equal(keyCommand({ key: "ArrowDown", ctrlKey: true, shiftKey: true }), null);
@@ -323,5 +361,100 @@ describe("ruleInitial", () => {
   test("works with letters outside the basic alphabet", () => {
     assert.equal(ruleInitial(rule("a", { name: "ёж" })), "Ё");
     assert.equal(ruleInitial(rule("a", { name: "😀 smile" })), "😀");
+  });
+});
+
+describe("moveRules", () => {
+  const abcdef = () => ["a", "b", "c", "d", "e", "f"].map(id => rule(id));
+  const moved = (selected, delta) => ids(moveRules(abcdef(), selected, delta)).join("");
+
+  test("moves a block of selected rules up by one", () => {
+    assert.equal(moved(["c", "d"], -1), "acdbef");
+  });
+
+  test("moves a block of selected rules down by one", () => {
+    assert.equal(moved(["c", "d"], 1), "abecdf");
+  });
+
+  test("a block at the top or at the bottom stays where it is", () => {
+    assert.equal(moved(["a", "b"], -1), "abcdef");
+    assert.equal(moved(["e", "f"], 1), "abcdef");
+  });
+
+  test("scattered rules each move by one and keep their order", () => {
+    assert.equal(moved(["b", "e"], -1), "bacedf");
+    assert.equal(moved(["b", "e"], 1), "acbdfe");
+  });
+
+  test("a selected rule that is blocked at the edge stays, the others move up until they are next to it", () => {
+    assert.equal(moved(["a", "c"], -1), "acbdef");
+    assert.equal(moved(["d", "f"], 1), "abcedf");
+  });
+
+  test("selecting everything changes nothing", () => {
+    assert.equal(moved(["a", "b", "c", "d", "e", "f"], -1), "abcdef");
+    assert.equal(moved(["a", "b", "c", "d", "e", "f"], 1), "abcdef");
+  });
+
+  test("ids that are not in the list are ignored, and an empty selection changes nothing", () => {
+    assert.equal(moved(["zzz"], -1), "abcdef");
+    assert.equal(moved([], 1), "abcdef");
+  });
+
+  test("keeps the rule objects, returns a new array and does not modify the input", () => {
+    const rules = abcdef();
+    const result = moveRules(rules, ["c"], -1);
+    assert.notEqual(result, rules);
+    assert.equal(result[1], rules[2]);
+    assert.equal(ids(rules).join(""), "abcdef");
+  });
+});
+
+describe("removeRules and restoreRules", () => {
+  const abcdef = () => ["a", "b", "c", "d", "e", "f"].map(id => rule(id));
+
+  test("removes the selected rules and says what was removed and where, in list order", () => {
+    const rules = abcdef();
+    const result = removeRules(rules, ["e", "b"]);
+    assert.equal(ids(result.rules).join(""), "acdf");
+    assert.deepEqual(result.removed, [{ rule: rules[1], index: 1 }, { rule: rules[4], index: 4 }]);
+  });
+
+  test("unknown ids and an empty selection remove nothing", () => {
+    assert.deepEqual(removeRules(abcdef(), ["zzz"]).removed, []);
+    assert.deepEqual(removeRules(abcdef(), []).removed, []);
+    assert.equal(ids(removeRules(abcdef(), ["zzz"]).rules).join(""), "abcdef");
+  });
+
+  test("does not modify the input", () => {
+    const rules = abcdef();
+    removeRules(rules, ["a", "b"]);
+    assert.equal(rules.length, 6);
+  });
+
+  test("restoring puts every rule back at its old position", () => {
+    for (const selected of [["a"], ["f"], ["b", "c"], ["a", "c", "e"], ["a", "b", "c", "d", "e", "f"], ["b", "f"]]) {
+      const { rules, removed } = removeRules(abcdef(), selected);
+      assert.equal(ids(restoreRules(rules, removed)).join(""), "abcdef", selected.join(""));
+    }
+  });
+
+  test("restoring into a shorter list puts the rules at the end, in order", () => {
+    const { removed } = removeRules(abcdef(), ["d", "f"]);
+    assert.equal(ids(restoreRules([rule("a")], removed)).join(""), "adf");
+  });
+
+  test("restoring nothing changes nothing", () => {
+    assert.equal(ids(restoreRules(abcdef(), [])).join(""), "abcdef");
+  });
+});
+
+describe("setEnabledMany", () => {
+  test("switches the selected rules, leaving the others as the same objects", () => {
+    const rules = [rule("a"), rule("b"), rule("c")];
+    const result = setEnabledMany(rules, ["a", "c"], false);
+    assert.deepEqual(result.map(r => r.enabled), [false, true, false]);
+    assert.equal(result[1], rules[1]);
+    assert.equal(rules[0].enabled, true);
   });
 });
