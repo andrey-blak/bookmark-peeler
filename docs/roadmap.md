@@ -16,7 +16,9 @@
   - A rule with validation errors stays in storage so it can be fixed, but is not applied until it is valid; warnings do not stop a rule.
   - Storage with a schema version newer than the code knows is never read or overwritten.
 - A new bookmark is cleaned by updating its URL right after `bookmarks.onCreated`. Rules are read from storage for every bookmark; failures are logged to the add-on console, and successes are not logged.
-- Only newly created bookmarks are cleaned at first. Later: optional cleaning on edit. Import and sync are not separate options: `bookmarks.onCreated` also fires for them, to be confirmed by testing.
+- A bookmark is cleaned when it is created. With the setting `cleanOnEdit` (off by default) it is also cleaned when its address is edited (`bookmarks.onChanged`); a change of the title or a move is ignored. The add-on records the addresses it writes itself and ignores the edit event they cause, so a rule that changes its own output cannot loop. Import and sync are not separate options: `bookmarks.onCreated` also fires for them, to be confirmed by testing.
+  - The Settings button in the header opens a panel in place of the editor; pressing the button again, or choosing a rule, goes back. It holds the checkbox "Also clean a bookmark when its address is edited" (saved at once) and "Clean existing bookmarks…".
+  - Clean existing bookmarks covers all bookmarks (only `http:` and `https:` ones can change) with the enabled rules that have no errors. A preview dialog says "N of M bookmarks would change" and lists the changes in a "Show the changes (N)" list that is open at first (it can be collapsed), 50 at first, with "Show more…". Each change has its title and two columns, Before and After, with the removed or rewritten parameters marked red in Before and the new or rewritten ones green in After, in the text colour by default, not bold. "Clean N bookmarks" applies them; a bookmark edited since the scan is left as it is. The Undo message (and Ctrl+Z) and the Settings button "Restore the last cleaned bookmarks" put the old addresses back, only while the page is open, and skip bookmarks edited since. The writes are done by the background page, so that they are recorded as the add-on's own.
 - The main page (the rules; not to be confused with settings) opens in its own tab, from the toolbar button and from the add-ons manager. In the code it is still the manifest's `options_ui` and `src/options/`. Two-column layout: rule list and rule editor, the list should be collapsible so regex editing has room. System colours and fonts, no custom theme.
   - The list's switch, reorder and delete save at once. Deleting shows an Undo for the last deleted rule, for 8 seconds.
   - The editor works on a copy with Save and Revert, so a rule can be tried before it is saved.
@@ -51,7 +53,7 @@
 9a. Refactoring: the replace action's `name` field and the remove action's `param` field are now both `parameter`, and `param`/`params` in the code are `parameter`/`parameters`, so a rule's own `name` is not confused with a parameter. Rules saved with the old fields lose their parameter filter or their remove action and have to be created again; nothing has been released yet, so there is no migration.
 10. Main page: live URL tester, collapsible rule list.
 11. Import / export (placed outside the rule list), presets. (done)
-12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
+12. Option to clean edited bookmarks; bulk clean of existing bookmarks and undo. (done)
 13. Optional: sync rules between devices with `storage.sync`.
     - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.
     - On conflict the server's value wins per key, so changes from `onChanged` have to be merged.
@@ -60,3 +62,4 @@
 16. Optional proper icons: delete, add.
 17. Optional: reorder the actions of a rule.
 18. Optional: keep only the specified parameters (an allowlist), removing all the others.
+19. Optional: choose folders for the bulk clean of existing bookmarks (now: all bookmarks).

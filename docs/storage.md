@@ -16,7 +16,7 @@ Types are JSON types; "default" is what normalisation fills in when the field is
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `cleanOnEdit` | boolean | `false` | Also clean a bookmark when its URL is edited, not only when it is created. Not implemented yet (roadmap step 12). |
+| `cleanOnEdit` | boolean | `false` | Also clean a bookmark when its URL is edited, not only when it is created. |
 
 ## Rule
 

@@ -17,6 +17,7 @@
       </details>
       <button id="import" type="button" title="Add rules from a file, or replace the current ones">Import…</button>
       <button id="export" type="button" title="Save all rules to a file">Export</button>
+      <button id="settings-button" type="button" aria-pressed="false">Settings</button>
       <input id="import-file" type="file" accept=".json,application/json" hidden>
     </div>
   </header>
@@ -35,12 +36,36 @@
     </section>
 
     <section id="editor" class="editor" aria-label="Rule editor"></section>
+    <section id="settings" class="editor" aria-label="Settings" hidden></section>
   </main>
 
   <div id="toast" class="toast" role="status" hidden>
     <span id="toast-text"></span>
     <button id="toast-undo" type="button" title="Ctrl+Z">Undo</button>
   </div>
+
+  <dialog id="bulk-dialog" class="hl-text" aria-labelledby="bulk-title">
+    <form method="dialog">
+      <p id="bulk-title"><strong>Clean existing bookmarks</strong></p>
+      <p id="bulk-summary"></p>
+      <details id="bulk-details" hidden>
+        <summary id="bulk-details-summary"></summary>
+        <div class="bulk-head">
+          <div class="pair" aria-hidden="true"><span>Before</span><span>After</span></div>
+          <div class="segmented" role="radiogroup" aria-label="How to mark the changed parts">
+            <label><input type="radio" name="bulk-highlight" value="text"><span>Text colour</span></label>
+            <label><input type="radio" name="bulk-highlight" value="background"><span>Background</span></label>
+          </div>
+        </div>
+        <ul id="bulk-list" class="bulk-list"></ul>
+        <button id="bulk-more" type="button" hidden>Show more…</button>
+      </details>
+      <div class="buttons">
+        <button id="bulk-clean" value="clean" autofocus hidden>Clean</button>
+        <button id="bulk-close" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="import-dialog" aria-labelledby="import-title">
     <form method="dialog">

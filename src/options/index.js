@@ -21,6 +21,8 @@ import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
 import { createEditor } from "./editor.js";
 import { exportFile, parseImport, summarizeImport, mergeImport } from "./transfer.js";
 import { PRESETS, presetDraft } from "./presets.js";
+import { createSettings } from "./settings.js";
+import { createBulkClean } from "./bulk-dialog.js";
 import { getPref, setPref } from "./prefs.js";
 
 const STORAGE_KEYS = ["schemaVersion", "settings", "rules"];
@@ -44,6 +46,42 @@ const editor = createEditor($("editor"), {
   onDuplicate: duplicateRule,
   getRules: () => (config ? config.rules : []),
 });
+
+// --- Settings panel and bulk clean ---
+
+const bulk = createBulkClean({
+  dialog: $("bulk-dialog"),
+  getRules: () => (config ? config.rules : []),
+  notify: text => showMessage(text),
+  notifyUndo: (text, restore) => showUndo(text, restore),
+  onChange: () => updateSettings(),
+});
+
+const settings = createSettings($("settings"), {
+  onCleanOnEdit: checked => setCleanOnEdit(checked),
+  onClean: () => bulk.start(),
+  onRestore: () => bulk.restoreLast(),
+});
+
+let view = "rules"; // what the right side shows: the rule editor or the settings
+
+function showView(name) {
+  view = name;
+  $("editor").hidden = name !== "rules";
+  $("settings").hidden = name !== "settings";
+  $("settings-button").setAttribute("aria-pressed", String(name === "settings"));
+}
+
+function updateSettings() {
+  settings.update({ cleanOnEdit: config ? config.settings.cleanOnEdit : false, restorable: bulk.restorable });
+}
+
+async function setCleanOnEdit(checked) {
+  if (!config) return;
+
+  const saved = await saveConfig({ ...config, settings: { ...config.settings, cleanOnEdit: checked } }, { rerender: false });
+  if (!saved) updateSettings(); // put the checkbox back
+}
 
 // --- Collapsing the list ---
 
@@ -235,6 +273,7 @@ function render() {
   list.replaceChildren(...items);
   updateMarks();
   editor.refreshTester();
+  updateSettings();
 
   if (focusId !== null) {
     list.querySelector(`[data-id="${CSS.escape(focusId)}"] .main`)?.focus();
@@ -297,6 +336,7 @@ async function saveEditor() {
 
 async function openRule(id, { focus = false } = {}) {
   if (!config) return;
+  showView("rules");
 
   if (id === selectedId && editor.isOpen) {
     if (focus) {
@@ -320,6 +360,7 @@ async function openRule(id, { focus = false } = {}) {
 async function addRule() {
   if (!config || !(await confirmLeave())) return;
 
+  showView("rules");
   selectedId = null;
   editor.open(newDraft(), { isNew: true });
   render();
@@ -330,6 +371,7 @@ async function duplicateRule() {
   const snapshot = editor.snapshot();
   if (!config || !snapshot || !(await confirmLeave())) return;
 
+  showView("rules");
   selectedId = null;
   editor.open(duplicateDraft(snapshot), { isNew: true });
   render();
@@ -508,6 +550,7 @@ async function openPreset(id) {
   const preset = PRESETS.find(p => p.id === id);
   if (!config || !preset || !(await confirmLeave())) return;
 
+  showView("rules");
   selectedId = null;
   editor.open(presetDraft(preset), { isNew: true });
   render();
@@ -558,7 +601,7 @@ const EDITABLE = 'input:not([type="checkbox"]):not([type="radio"]), textarea, se
 
 document.addEventListener("keydown", event => {
   if (isSaveKey(event)) {
-    if (editor.isOpen) {
+    if (editor.isOpen && view === "rules") {
       event.preventDefault();
       saveEditor();
     }
@@ -674,6 +717,7 @@ list.addEventListener("dragend", () => {
 });
 
 $("add").addEventListener("click", addRule);
+$("settings-button").addEventListener("click", () => showView(view === "settings" ? "rules" : "settings"));
 
 $("export").addEventListener("click", () => {
   if (config) download(exportFile(config));

@@ -17,17 +17,7 @@ import {
 import { ruleTitle } from "./rule-list.js";
 import { testRules, describeChange } from "./tester.js";
 import { getPref, setPref } from "./prefs.js";
-
-function el(tag, props = {}, ...children) {
-  const node = document.createElement(tag);
-  for (const [name, value] of Object.entries(props)) {
-    if (name === "dataset") Object.assign(node.dataset, value);
-    else if (name === "role" || name.includes("-")) node.setAttribute(name, value); // ARIA properties are not reliable in Firefox 112
-    else node[name] = value;
-  }
-  node.append(...children);
-  return node;
-}
+import { el } from "./dom.js";
 
 const parsePath = key => key.split(".").map(part => (/^\d+$/.test(part) ? Number(part) : part));
 const clone = value => structuredClone(value);
