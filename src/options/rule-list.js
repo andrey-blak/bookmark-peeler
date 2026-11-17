@@ -85,6 +85,11 @@ export function ruleSubtitle(rule) {
   return rule.name ? scopeLabel(rule.scope) : "";
 }
 
+/** The capital letter shown for a rule when the list is collapsed. */
+export function ruleInitial(rule) {
+  return Array.from(ruleTitle(rule))[0].toUpperCase();
+}
+
 /** "error" (not applied), "warning" (applied, but probably not what was meant), or null. */
 export function ruleStatus(rule) {
   const issues = validateRule(rule);
@@ -96,6 +101,7 @@ export function ruleStatus(rule) {
  * What a key press means for the rule list; anything else is not ours (null).
  * Up and Down select a rule, Ctrl+Up and Ctrl+Down move it.
  * Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete.
+ * [ collapses or expands the list.
  */
 export function keyCommand({ key, ctrlKey, shiftKey, altKey, metaKey }) {
   if (shiftKey || altKey || metaKey) return null;
@@ -106,6 +112,7 @@ export function keyCommand({ key, ctrlKey, shiftKey, altKey, metaKey }) {
   }
 
   if (key.toLowerCase() === "z") return ctrlKey ? { type: "undo" } : null;
+  if (key === "[") return ctrlKey ? null : { type: "collapse" };
 
   if (ctrlKey) return null;
   if (key === "Delete") return { type: "delete" };

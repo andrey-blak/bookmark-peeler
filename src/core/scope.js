@@ -91,3 +91,20 @@ export function matchesScope(scope, url) {
       return false;
   }
 }
+
+/**
+ * Why a scope does not match a URL: "domain", or "path" (the domain matches, the path does not).
+ * null when it matches, and also when there is nothing sensible to say: not a URL, or not a valid scope.
+ */
+export function scopeMismatch(scope, url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  if (scope?.type !== "host") return null;
+  if (!hostMatches(scope.host, scope.subdomains, parsed.hostname)) return "domain";
+  return pathMatches(scope.path, parsed.pathname) ? null : "path";
+}

@@ -11,7 +11,7 @@ The tests are in `tests/unit/`, one file per module:
 
 - `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
 - `src/background/`: what happens when a bookmark is created, with a fake browser.
-- `src/options/`: the logic of the rule list and of the rule editor, without DOM.
+- `src/options/`: the logic of the rule list, the rule editor and the "Try it" panel, without DOM.
 - The manifest: permissions, background page, options page and icons.
 
 Not covered by them: the pages as drawn in Firefox (layout, focus, drag and drop, dialogs) and the real bookmark events.
@@ -83,7 +83,7 @@ Click the toolbar button: the main page must open in its own tab. Then check:
    - Ctrl+Z, while the Undo message is visible, restores the last deleted rule at its old position and focuses it. After the message has gone, Ctrl+Z does nothing.
 9. The page does not print the shortcuts anywhere.
 
-The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete.
+The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down move it, Delete deletes it, Enter and Space switch it on or off, Ctrl+Z undoes the last delete, `[` collapses or expands the list.
 
 ### Main page: the rule editor
 
@@ -106,3 +106,23 @@ Start with the rules from the previous section, or an empty list.
 15. Messages on opening a stored rule: a rule without actions shows "This rule has no actions, so it does nothing." under "Actions" as soon as it is opened. Save a new rule without actions, select another rule and come back: the warning is still there. "Has an error" shows "Enter a domain." under Domain at once. After changing a field of a stored rule and pressing Revert, the messages are still shown. A new rule shows no message until you type in it.
 16. Domain and path fields: the Path placeholder is `watch` and its hint shows `playlist/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. The Subdomains option includes subdomains." A path without the leading slash (`new`) still matches `/new`.
 17. End to end: create "Remove pp" for `youtube.com`, action Remove parameter `pp`, and Save. Bookmark a YouTube URL with `&pp=...`: the saved bookmark has no `pp`.
+
+### Main page: "Try it"
+
+Have a few rules, for example "Tracking" (all sites, remove `utm_*`) and the GitHub visibility rule from the editor test, and open one of them.
+If the page looks unstyled or shows an old version after a change, reload the add-on in `about:debugging` and reload the page with Ctrl+Shift+R, so Firefox does not use a cached stylesheet.
+
+1. "Try it" is at the bottom of the editor, above Save, with clear space above it. Before anything is typed it says "Paste a URL to see what the rule does."
+2. Paste `https://github.com/new?owner=me&visibility=public&utm_source=x`. With "All rules" selected (the default) the result is `https://github.com/new?owner=me&visibility=private`, with `visibility=private` in bold green. There is space between the URL field and the result, and the first character of the result is directly under the first character typed in the URL field.
+3. "What changed (2)" is collapsed, with space above it. Open it: `✓ Changed: visibility: public → private  by **GitHub visibility**` with a green ✓, and `✕ Removed: utm_source=x  by **Tracking**` with a red ✕, each part separated by a space, the rule name in bold, and no coloured background. Reload the page: the list is collapsed again.
+4. Choose "Current rule": the result keeps `utm_source=x`, only the open rule's change is listed, and the lines no longer name a rule.
+5. The result follows what you type, in the URL field and in the rule's fields, without saving. Change the replacement to `internal`: the result changes at once, and Revert brings the old result back.
+6. Reload the page, or close and reopen it: the URL and the mode are still there, and no Save was pressed.
+7. Notes: test `https://gitlab.com/new?visibility=public` with the GitHub rule: "This rule doesn't apply to this URL: the domain doesn't match." Give the rule a path `/settings` and test the GitHub URL: "...the path doesn't match." Put an invalid regex in a pattern: "This rule has errors, so it isn't applied." Switch the rule off in the list and use "All rules": "This rule is switched off in the list, so it isn't applied."
+8. A URL that is not http or https (`github.com/new`, `ftp://...`) shows "Enter a full URL starting with http:// or https://." A URL with no matching parameters shows the URL and "No changes."
+
+### Main page: the collapsible rule list
+
+1. Collapse the list with the « button: it becomes a narrow strip with one square per rule showing its initial, with a "+" for Add rule at the top and » to expand. The selected rule is highlighted, a rule with an error has a red border, and clicking a square opens that rule. Reload: it stays collapsed.
+2. Press `[` with the focus on a rule or on the page: the list expands again. Typing `[` in a text field (for example in a regex) must not collapse it.
+3. In the collapsed list, Up and Down, Ctrl+Up and Ctrl+Down, Delete, Enter and Space still work on the focused square.

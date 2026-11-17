@@ -14,11 +14,15 @@ import {
   summaryText,
   isDirty,
 } from "./editor-model.js";
+import { ruleTitle } from "./rule-list.js";
+import { testRules, describeChange } from "./tester.js";
+import { getPref, setPref } from "./prefs.js";
 
 function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [name, value] of Object.entries(props)) {
     if (name === "dataset") Object.assign(node.dataset, value);
+    else if (name === "role" || name.includes("-")) node.setAttribute(name, value); // ARIA properties are not reliable in Firefox 112
     else node[name] = value;
   }
   node.append(...children);
@@ -33,14 +37,18 @@ const clone = value => structuredClone(value);
  * @param handlers.onSave called when the user asks to save (Save button)
  * @param handlers.onChange called after every change of the draft
  * @param handlers.onDuplicate called when the user presses Duplicate
+ * @param handlers.getRules returns the stored rules, for the "All rules" mode of the tester
  */
-export function createEditor(root, { onSave, onChange, onDuplicate }) {
+export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) {
   let draft = null;
   let baseline = null;
   let isNew = false;
   let touched = new Set(); // keys of the fields the user has changed; issues are shown only for these
   let showAll = false; // after Save every issue is shown
   let justSaved = false;
+
+  // The tester's URL and mode are remembered between visits without any Save; the list of changes starts collapsed.
+  const tester = { url: getPref("testUrl", ""), mode: getPref("testMode", "all"), open: false };
 
   // --- Drawing ---
 
@@ -152,6 +160,86 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
       addMenu);
   }
 
+  function testerSection() {
+    const radio = (value, label) => {
+      const input = el("input", { type: "radio", name: "test-mode", value, checked: tester.mode === value, dataset: { testMode: value } });
+      return el("label", {}, input, el("span", {}, label));
+    };
+
+    const url = el("input", {
+      type: "text",
+      value: tester.url,
+      placeholder: "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=…",
+      spellcheck: false,
+      autocomplete: "off",
+      className: "mono",
+      dataset: { testUrl: "" },
+    });
+
+    const changes = el("details", { className: "changes", open: tester.open },
+      el("summary", {}),
+      el("ul", {}));
+
+    return el("section", { className: "tester" },
+      el("div", { className: "tester-head" },
+        el("h3", {}, "Try it"),
+        el("div", { className: "segmented", role: "radiogroup" }, radio("all", "All rules"), radio("current", "Current rule"))),
+      el("label", { className: "field" }, el("span", { className: "label" }, "URL to test"), url),
+      el("div", { className: "result", role: "status" }),
+      changes);
+  }
+
+  /** Runs the URL of the tester through the rules and shows the result, in place, so typing keeps the focus. */
+  function refreshTester() {
+    const result = root.querySelector(".tester .result");
+    if (draft === null || !result) return;
+
+    const outcome = testRules(tester.url, { draft, rules: getRules(), mode: tester.mode });
+    const changes = root.querySelector(".tester details.changes");
+    const note = text => el("p", { className: "note" }, text);
+
+    result.replaceChildren();
+    changes.hidden = true;
+
+    if (outcome.status === "empty") {
+      result.append(note("Paste a URL to see what the rule does."));
+      return;
+    }
+    if (outcome.status === "invalid") {
+      result.append(note("Enter a full URL starting with http:// or https://."));
+      return;
+    }
+
+    result.append(el("div", { className: "result-url" },
+      ...outcome.segments.map(segment => (segment.changed ? el("span", { className: "changed" }, segment.text) : segment.text))));
+
+    for (const text of outcome.notes) result.append(note(text));
+    if (outcome.changes.length === 0 && outcome.notes.length === 0) result.append(note("No changes."));
+    if (outcome.changes.length === 0) return;
+
+    const titleOf = ruleId => {
+      if (ruleId === draft.id) return ruleTitle(draft);
+      const rule = getRules().find(r => r.id === ruleId);
+      return rule ? ruleTitle(rule) : null;
+    };
+
+    changes.hidden = false;
+    changes.querySelector("summary").textContent = `What changed (${outcome.changes.length})`;
+    changes.querySelector("ul").replaceChildren(...outcome.changes.map(change => {
+      const { kind, text } = describeChange(change);
+      const by = tester.mode === "all" ? titleOf(change.ruleId) : null;
+
+      // Plain spaces between the parts, so the line reads right whatever the layout does.
+      return el("li", {},
+        el("span", { className: kind === "removed" ? "mark rm" : "mark ok", "aria-hidden": "true" }, kind === "removed" ? "✕" : "✓"),
+        " ",
+        el("span", { className: "kind" }, kind === "removed" ? "Removed:" : "Changed:"),
+        " ",
+        el("span", { className: "mono" }, text),
+        ...(by ? [" ", el("span", { className: "by" }, "by ", el("strong", {}, by))] : []));
+    }));
+  }
+
   function draw() {
     if (draft === null) {
       root.replaceChildren(el("p", { className: "placeholder" }, "Select a rule to edit it, or add a new one."));
@@ -166,7 +254,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
       el("button", { type: "button", textContent: "Revert", dataset: { revert: "" } }),
       el("span", { className: "summary", id: "summary", role: "status" }));
 
-    root.replaceChildren(el("form", { className: "editor-form", noValidate: true }, header, scopeSection(), actionsSection(), footer));
+    root.replaceChildren(el("form", { className: "editor-form", noValidate: true }, header, scopeSection(), actionsSection(), testerSection(), footer));
     refreshFeedback();
   }
 
@@ -191,13 +279,17 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
 
     const summary = root.querySelector("#summary");
     if (summary) summary.textContent = summaryText(visible) || (justSaved ? "Saved." : "");
+
+    refreshTester();
   }
 
   // --- Keeping the focus when the form is drawn again ---
 
   function focusSelector(node) {
-    const { path, replacePath, scopeMode: mode, addAction: add } = node.dataset;
+    const { path, replacePath, scopeMode: mode, addAction: add, testUrl, testMode } = node.dataset;
     if (path !== undefined) return `input[data-path="${path}"]`;
+    if (testUrl !== undefined) return "input[data-test-url]";
+    if (testMode !== undefined) return `input[data-test-mode="${testMode}"]`;
     if (replacePath !== undefined) return `input[data-replace-path="${replacePath}"]`;
     if (mode !== undefined) return "select[data-scope-mode]";
     if (add !== undefined) return "select[data-add-action]";
@@ -235,6 +327,13 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
     const field = event.target;
     if (draft === null || field.type !== "text") return;
 
+    if (field.dataset.testUrl !== undefined) {
+      tester.url = field.value;
+      setPref("testUrl", tester.url);
+      refreshTester();
+      return;
+    }
+
     apply(parsePath(field.dataset.path), field.value);
     refreshFeedback();
   });
@@ -243,7 +342,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
     const field = event.target;
     if (draft === null) return;
 
-    if (field.dataset.scopeMode !== undefined) {
+    if (field.dataset.testMode !== undefined) {
+      tester.mode = field.value;
+      setPref("testMode", tester.mode);
+      refreshTester();
+    } else if (field.dataset.scopeMode !== undefined) {
       draft = { ...draft, scope: setScopeMode(draft.scope, field.value) };
       changed("scope.type");
       redraw();
@@ -286,6 +389,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
   });
 
   root.addEventListener("submit", event => event.preventDefault());
+
+  // The toggle event does not bubble, so it is caught on the way down.
+  root.addEventListener("toggle", event => {
+    if (event.target.matches("details.changes")) tester.open = event.target.open;
+  }, true);
 
   function revert() {
     draft = clone(baseline);
@@ -340,6 +448,9 @@ export function createEditor(root, { onSave, onChange, onDuplicate }) {
       redraw();
       onChange();
     },
+
+    /** The stored rules changed: the result of the tester may have changed too. */
+    refreshTester,
 
     focus(key) {
       root.querySelector(`input[data-path="${key}"]`)?.focus();

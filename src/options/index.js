@@ -12,12 +12,14 @@ import {
   ruleTitle,
   ruleSubtitle,
   ruleStatus,
+  ruleInitial,
   keyCommand,
   stepSelection,
   selectionAfterRemove,
 } from "./rule-list.js";
 import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
 import { createEditor } from "./editor.js";
+import { getPref, setPref } from "./prefs.js";
 
 const STORAGE_KEYS = ["schemaVersion", "settings", "rules"];
 const UNDO_MS = 8000;
@@ -36,7 +38,28 @@ const editor = createEditor($("editor"), {
   onSave: saveEditor,
   onChange: updateMarks,
   onDuplicate: duplicateRule,
+  getRules: () => (config ? config.rules : []),
 });
+
+// --- Collapsing the list ---
+
+let collapsed = getPref("listCollapsed", false);
+
+function applyCollapsed() {
+  document.body.classList.toggle("collapsed", collapsed);
+
+  const button = $("collapse");
+  button.textContent = collapsed ? "»" : "«";
+  button.setAttribute("aria-expanded", String(!collapsed));
+  button.setAttribute("aria-label", collapsed ? "Show the rule list" : "Hide the rule list");
+  button.title = `${collapsed ? "Show" : "Hide"} the rule list ([)`;
+}
+
+function toggleCollapsed() {
+  collapsed = !collapsed;
+  setPref("listCollapsed", collapsed);
+  applyCollapsed();
+}
 
 // --- Storage ---
 
@@ -134,6 +157,9 @@ function renderRule(rule) {
   const main = document.createElement("button");
   main.type = "button";
   main.className = "main";
+  main.dataset.initial = ruleInitial(rule);
+  main.title = title;
+  main.setAttribute("aria-label", subtitle ? `${title}, ${subtitle}` : title);
   if (rule.id === selectedId) main.setAttribute("aria-current", "true");
 
   const titleEl = document.createElement("span");
@@ -151,6 +177,8 @@ function renderRule(rule) {
   item.append(grip, toggle, main);
 
   if (status) {
+    item.dataset.status = status;
+
     const mark = document.createElement("span");
     mark.className = "status";
     mark.dataset.status = status;
@@ -181,6 +209,8 @@ function renderDraftRow() {
   const main = document.createElement("button");
   main.type = "button";
   main.className = "main";
+  main.dataset.initial = Array.from(editor.title)[0].toUpperCase();
+  main.title = editor.title;
   main.setAttribute("aria-current", "true");
 
   const titleEl = document.createElement("span");
@@ -197,6 +227,7 @@ function render() {
   if (config && editor.isOpen && editor.isNew) items.push(renderDraftRow());
   list.replaceChildren(...items);
   updateMarks();
+  editor.refreshTester();
 
   if (focusId !== null) {
     list.querySelector(`[data-id="${CSS.escape(focusId)}"] .main`)?.focus();
@@ -213,8 +244,12 @@ function updateMarks() {
     item.classList.toggle("unsaved", isOpen && dirty);
   }
 
-  const draftTitle = list.querySelector(".draft .title");
-  if (draftTitle) draftTitle.textContent = editor.title;
+  const draftMain = list.querySelector(".draft .main");
+  if (draftMain) {
+    draftMain.querySelector(".title").textContent = editor.title;
+    draftMain.dataset.initial = Array.from(editor.title)[0].toUpperCase();
+    draftMain.title = editor.title;
+  }
 }
 
 // --- Opening, saving and leaving the editor ---
@@ -403,7 +438,17 @@ document.addEventListener("keydown", event => {
   }
 
   const command = keyCommand(event);
-  if (!command || !config) return;
+  if (!command) return;
+
+  if (command.type === "collapse") {
+    if (!event.target.closest(EDITABLE)) {
+      event.preventDefault();
+      toggleCollapsed();
+    }
+    return;
+  }
+
+  if (!config) return;
 
   if (command.type === "undo") {
     if (undo && !event.target.closest(EDITABLE)) {
@@ -501,6 +546,7 @@ list.addEventListener("dragend", () => {
 });
 
 $("add").addEventListener("click", addRule);
+$("collapse").addEventListener("click", toggleCollapsed);
 $("toast-undo").addEventListener("click", undoDelete);
 
 window.addEventListener("beforeunload", event => {
@@ -511,6 +557,7 @@ browser.storage.onChanged.addListener((changes, area) => {
   if (area === "local") load({ onlyIfChanged: true });
 });
 
+applyCollapsed();
 editor.close();
 load().catch(error => {
   console.error("Bookmark Peeler:", error);

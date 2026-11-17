@@ -1,0 +1,238 @@
+import { test, describe } from "node:test";
+import assert from "node:assert/strict";
+import { testRules, describeChange, highlightSegments } from "../../src/options/tester.js";
+
+const GITHUB = "https://github.com/new?owner=me&visibility=public&utm_source=x";
+
+const visibility = (extra = {}) => ({
+  id: "vis",
+  enabled: true,
+  name: "GitHub visibility",
+  scope: { type: "host", host: "github.com" },
+  actions: [{
+    type: "replace",
+    parameter: { find: "^visibility$" },
+    value: { find: "^public$", replace: "private" },
+    ignoreCase: false,
+  }],
+  ...extra,
+});
+
+const tracking = (extra = {}) => ({
+  id: "trk",
+  enabled: true,
+  name: "Tracking",
+  scope: { type: "all" },
+  actions: [{ type: "remove", parameter: "utm_*" }],
+  ...extra,
+});
+
+describe("testRules: what is tested", () => {
+  test("nothing typed", () => {
+    assert.equal(testRules("", { draft: visibility(), rules: [], mode: "all" }).status, "empty");
+    assert.equal(testRules("   ", { draft: visibility(), rules: [], mode: "all" }).status, "empty");
+  });
+
+  test("text that is not an http or https URL", () => {
+    for (const input of ["github.com/new", "not a url", "ftp://github.com/?a=1", "about:reader?url=x"]) {
+      assert.equal(testRules(input, { draft: visibility(), rules: [], mode: "all" }).status, "invalid", input);
+    }
+  });
+
+  test("surrounding spaces are ignored", () => {
+    const result = testRules(`  ${GITHUB}  `, { draft: visibility(), rules: [], mode: "current" });
+    assert.equal(result.status, "ok");
+    assert.equal(result.url, "https://github.com/new?owner=me&visibility=private&utm_source=x");
+  });
+});
+
+describe("testRules: current rule", () => {
+  test("runs only the draft", () => {
+    const result = testRules(GITHUB, { draft: visibility(), rules: [tracking()], mode: "current" });
+    assert.equal(result.url, "https://github.com/new?owner=me&visibility=private&utm_source=x");
+    assert.deepEqual(result.changes.map(c => c.kind), ["changed"]);
+    assert.deepEqual(result.notes, []);
+  });
+
+  test("uses the unsaved draft, not the stored version of the rule", () => {
+    const stored = visibility();
+    const draft = visibility({ actions: [{ type: "remove", parameter: "owner" }] });
+    const result = testRules(GITHUB, { draft, rules: [stored], mode: "current" });
+    assert.equal(result.url, "https://github.com/new?visibility=public&utm_source=x");
+  });
+
+  test("a rule that is switched off in the list is still tested", () => {
+    const result = testRules(GITHUB, { draft: visibility({ enabled: false }), rules: [], mode: "current" });
+    assert.equal(result.changes.length, 1);
+    assert.deepEqual(result.notes, []);
+  });
+
+  test("a rule with errors is not applied, and the result says so", () => {
+    const draft = visibility({ scope: { type: "host", host: "" } });
+    const result = testRules(GITHUB, { draft, rules: [], mode: "current" });
+    assert.equal(result.url, GITHUB);
+    assert.deepEqual(result.changes, []);
+    assert.deepEqual(result.notes, ["This rule has errors, so it isn't applied."]);
+  });
+
+  test("a rule with only warnings is applied", () => {
+    const draft = visibility({ actions: [] });
+    const result = testRules(GITHUB, { draft, rules: [], mode: "current" });
+    assert.equal(result.status, "ok");
+    assert.deepEqual(result.notes, []);
+  });
+});
+
+describe("testRules: why a rule does not apply", () => {
+  test("the domain does not match", () => {
+    const result = testRules("https://gitlab.com/new?visibility=public", { draft: visibility(), rules: [], mode: "current" });
+    assert.deepEqual(result.changes, []);
+    assert.deepEqual(result.notes, ["This rule doesn't apply to this URL: the domain doesn't match."]);
+  });
+
+  test("the path does not match", () => {
+    const draft = visibility({ scope: { type: "host", host: "github.com", path: "/settings" } });
+    const result = testRules(GITHUB, { draft, rules: [], mode: "current" });
+    assert.deepEqual(result.notes, ["This rule doesn't apply to this URL: the path doesn't match."]);
+  });
+
+  test("the scope matches but nothing in the query matches: no note, no changes", () => {
+    const result = testRules("https://github.com/new?owner=me", { draft: visibility(), rules: [], mode: "current" });
+    assert.deepEqual(result.changes, []);
+    assert.deepEqual(result.notes, []);
+  });
+});
+
+describe("testRules: all rules", () => {
+  test("runs the stored rules in order, with the draft in place of its stored version", () => {
+    const stored = [tracking(), visibility({ actions: [] })];
+    const draft = visibility();
+    const result = testRules(GITHUB, { draft, rules: stored, mode: "all" });
+    assert.equal(result.url, "https://github.com/new?owner=me&visibility=private");
+    assert.deepEqual(result.changes.map(c => [c.kind, c.ruleId]), [["changed", "vis"], ["removed", "trk"]]);
+  });
+
+  test("a new draft runs after the stored rules", () => {
+    const rename = { id: "ren", scope: { type: "all" }, actions: [{ type: "replace", parameter: { find: "^owner$", replace: "who" } }] };
+    const draft = { ...tracking({ id: "new", actions: [{ type: "remove", parameter: "who" }] }) };
+    const result = testRules(GITHUB, { draft, rules: [rename], mode: "all" });
+    assert.equal(result.url, "https://github.com/new?visibility=public&utm_source=x");
+  });
+
+  test("rules that are switched off or have errors are left out", () => {
+    const stored = [tracking({ enabled: false }), tracking({ id: "bad", scope: { type: "host", host: "" } })];
+    const result = testRules(GITHUB, { draft: visibility(), rules: stored, mode: "all" });
+    assert.equal(result.url, "https://github.com/new?owner=me&visibility=private&utm_source=x");
+  });
+
+  test("the draft takes the switch of the stored rule: off in the list means not applied, with a note", () => {
+    const result = testRules(GITHUB, { draft: visibility(), rules: [visibility({ enabled: false })], mode: "all" });
+    assert.equal(result.url, GITHUB);
+    assert.deepEqual(result.notes, ["This rule is switched off in the list, so it isn't applied."]);
+  });
+
+  test("a rule with errors says so in this mode too", () => {
+    const draft = visibility({ scope: { type: "host", host: "" } });
+    const result = testRules(GITHUB, { draft, rules: [tracking()], mode: "all" });
+    assert.deepEqual(result.notes, ["This rule has errors, so it isn't applied."]);
+    assert.equal(result.url, "https://github.com/new?owner=me&visibility=public");
+  });
+
+  test("the scope note is given here as well", () => {
+    const result = testRules("https://gitlab.com/new?utm_source=x", { draft: visibility(), rules: [tracking()], mode: "all" });
+    assert.deepEqual(result.notes, ["This rule doesn't apply to this URL: the domain doesn't match."]);
+    assert.equal(result.url, "https://gitlab.com/new");
+  });
+
+  test("an unknown mode means all rules", () => {
+    const result = testRules(GITHUB, { draft: visibility(), rules: [tracking()], mode: "whatever" });
+    assert.equal(result.url, "https://github.com/new?owner=me&visibility=private");
+  });
+
+  test("missing rules are an empty list", () => {
+    const result = testRules(GITHUB, { draft: visibility(), rules: undefined, mode: "all" });
+    assert.equal(result.status, "ok");
+  });
+});
+
+describe("describeChange", () => {
+  test("a removed parameter", () => {
+    assert.deepEqual(
+      describeChange({ kind: "removed", before: { name: "utm_source", value: "x" }, after: null }),
+      { kind: "removed", text: "utm_source=x" },
+    );
+  });
+
+  test("a removed parameter without a value", () => {
+    assert.equal(describeChange({ kind: "removed", before: { name: "fbclid", value: null }, after: null }).text, "fbclid");
+  });
+
+  test("a changed value", () => {
+    const change = { kind: "changed", before: { name: "visibility", value: "public" }, after: { name: "visibility", value: "private" } };
+    assert.deepEqual(describeChange(change), { kind: "changed", text: "visibility: public → private" });
+  });
+
+  test("a value that appears or disappears", () => {
+    const added = { kind: "changed", before: { name: "a", value: null }, after: { name: "a", value: "1" } };
+    const dropped = { kind: "changed", before: { name: "a", value: "1" }, after: { name: "a", value: null } };
+    assert.equal(describeChange(added).text, "a: (no value) → 1");
+    assert.equal(describeChange(dropped).text, "a: 1 → (no value)");
+  });
+
+  test("a renamed parameter", () => {
+    const change = { kind: "changed", before: { name: "utm_source", value: "x" }, after: { name: "source", value: "x" } };
+    assert.equal(describeChange(change).text, "utm_source → source (value x)");
+  });
+
+  test("a rename that also changes the value", () => {
+    const change = { kind: "changed", before: { name: "a", value: "1" }, after: { name: "b", value: "2" } };
+    assert.equal(describeChange(change).text, "a=1 → b=2");
+  });
+});
+
+describe("highlightSegments", () => {
+  const text = segments => segments.map(s => s.text).join("");
+
+  test("marks the parameters that are not in the original", () => {
+    const segments = highlightSegments(
+      "https://github.com/new?owner=me&visibility=private",
+      "https://github.com/new?owner=me&visibility=public&utm_source=x",
+    );
+    assert.deepEqual(segments, [
+      { text: "https://github.com/new?owner=me&", changed: false },
+      { text: "visibility=private", changed: true },
+    ]);
+  });
+
+  test("the segments always add up to the result", () => {
+    const result = "https://e.org/p?a=1&b=2&c=3#frag";
+    assert.equal(text(highlightSegments(result, "https://e.org/p?a=1&b=9&c=3&d=4#frag")), result);
+  });
+
+  test("nothing is marked when nothing changed", () => {
+    const url = "https://e.org/?a=1&b=2";
+    assert.deepEqual(highlightSegments(url, url), [{ text: url, changed: false }]);
+  });
+
+  test("a URL without a query, or with every parameter removed, is one plain segment", () => {
+    assert.deepEqual(highlightSegments("https://e.org/p", "https://e.org/p"), [{ text: "https://e.org/p", changed: false }]);
+    assert.deepEqual(highlightSegments("https://e.org/p#top", "https://e.org/p?a=1#top"), [{ text: "https://e.org/p#top", changed: false }]);
+  });
+
+  test("repeated parameters are matched one by one", () => {
+    const segments = highlightSegments("https://e.org/?a=1&a=2", "https://e.org/?a=1&a=3");
+    assert.deepEqual(segments, [
+      { text: "https://e.org/?a=1&", changed: false },
+      { text: "a=2", changed: true },
+    ]);
+  });
+
+  test("the fragment stays with the text after the last parameter", () => {
+    const segments = highlightSegments("https://e.org/?a=2#top", "https://e.org/?a=1#top");
+    assert.deepEqual(segments, [
+      { text: "https://e.org/?", changed: false },
+      { text: "a=2", changed: true },
+      { text: "#top", changed: false },
+    ]);
+  });
+});

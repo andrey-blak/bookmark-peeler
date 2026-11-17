@@ -12,6 +12,7 @@ import {
   ruleSubtitle,
   ruleStatus,
   keyCommand,
+  ruleInitial,
   stepSelection,
   selectionAfterRemove,
 } from "../../src/options/rule-list.js";
@@ -252,6 +253,16 @@ describe("keyCommand", () => {
     assert.deepEqual(keyCommand({ key: "Z", ctrlKey: true }), { type: "undo" });
   });
 
+  test("[ collapses or expands the list", () => {
+    assert.deepEqual(keyCommand({ key: "[" }), { type: "collapse" });
+  });
+
+  test("[ with a modifier does nothing", () => {
+    assert.equal(keyCommand({ key: "[", ctrlKey: true }), null);
+    assert.equal(keyCommand({ key: "[", altKey: true }), null);
+    assert.equal(keyCommand({ key: "[", metaKey: true }), null);
+  });
+
   test("other modifiers and other keys do nothing", () => {
     assert.equal(keyCommand({ key: "ArrowUp", shiftKey: true }), null);
     assert.equal(keyCommand({ key: "ArrowUp", altKey: true }), null);
@@ -291,5 +302,26 @@ describe("stepSelection and selectionAfterRemove", () => {
     assert.equal(selectionAfterRemove(1, 3), 1);
     assert.equal(selectionAfterRemove(3, 3), 2);
     assert.equal(selectionAfterRemove(0, 0), -1);
+  });
+});
+
+describe("ruleInitial", () => {
+  test("is the first letter of the title, in capitals", () => {
+    assert.equal(ruleInitial(rule("a", { name: "tracking" })), "T");
+    assert.equal(ruleInitial(rule("a", { name: "YouTube" })), "Y");
+  });
+
+  test("without a name it comes from the domain, or all sites", () => {
+    assert.equal(ruleInitial(rule("a", { scope: { type: "host", host: "news.example.com" } })), "N");
+    assert.equal(ruleInitial(rule("a")), "A");
+  });
+
+  test("a rule with nothing to show gets U for untitled", () => {
+    assert.equal(ruleInitial(rule("a", { scope: { type: "host", host: "" } })), "U");
+  });
+
+  test("works with letters outside the basic alphabet", () => {
+    assert.equal(ruleInitial(rule("a", { name: "ёж" })), "Ё");
+    assert.equal(ruleInitial(rule("a", { name: "😀 smile" })), "😀");
   });
 });

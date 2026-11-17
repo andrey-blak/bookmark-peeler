@@ -6,7 +6,7 @@
 src/            the add-on itself (this folder is what gets packed)
 src/core/       pure logic, no browser APIs: query parsing, scope, actions, engine, schema
 src/background/ the background page and its event handlers
-src/options/    the main page (the manifest calls it options_ui); rule-list.js and editor-model.js are its logic without DOM, the rest is DOM and storage glue
+src/options/    the main page (the manifest calls it options_ui); rule-list.js, editor-model.js and tester.js are its logic without DOM, the rest is DOM and storage glue
 tests/          unit tests (node:test), tests/unit/*.test.js
 scripts/    build.sh, setup-node.sh, test.sh
 docs/       documentation

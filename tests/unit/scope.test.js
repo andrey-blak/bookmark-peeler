@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { hostMatches, pathMatches, matchesScope } from "../../src/core/scope.js";
+import { hostMatches, pathMatches, matchesScope, scopeMismatch } from "../../src/core/scope.js";
 
 describe("hostMatches", () => {
   test("exact host", () => {
@@ -198,5 +198,34 @@ describe("matchesScope", () => {
 
   test("a host scope without a host never matches", () => {
     assert.equal(matchesScope({ type: "host" }, youtube), false);
+  });
+});
+
+describe("scopeMismatch", () => {
+  const url = "https://www.youtube.com/watch?v=1";
+
+  test("null when the scope matches", () => {
+    assert.equal(scopeMismatch({ type: "all" }, url), null);
+    assert.equal(scopeMismatch({ type: "host", host: "youtube.com" }, url), null);
+    assert.equal(scopeMismatch({ type: "host", host: "youtube.com", path: "/watch" }, url), null);
+  });
+
+  test("says domain when the domain does not match", () => {
+    assert.equal(scopeMismatch({ type: "host", host: "vimeo.com" }, url), "domain");
+    assert.equal(scopeMismatch({ type: "host", host: "youtube.com", subdomains: false }, url), "domain");
+  });
+
+  test("says path when the domain matches and the path does not", () => {
+    assert.equal(scopeMismatch({ type: "host", host: "youtube.com", path: "/playlist" }, url), "path");
+  });
+
+  test("a domain mismatch wins over a path mismatch", () => {
+    assert.equal(scopeMismatch({ type: "host", host: "vimeo.com", path: "/playlist" }, url), "domain");
+  });
+
+  test("something that is not a URL, or a scope that is not valid, is not reported", () => {
+    assert.equal(scopeMismatch({ type: "all" }, "not a url"), null);
+    assert.equal(scopeMismatch({ type: "regex" }, url), null);
+    assert.equal(scopeMismatch(undefined, url), null);
   });
 });

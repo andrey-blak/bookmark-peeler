@@ -16,7 +16,10 @@
     <section class="sidebar" aria-labelledby="rules-heading">
       <div class="sidebar-head">
         <h2 id="rules-heading">Rules</h2>
-        <button id="add" type="button">Add rule</button>
+        <div class="sidebar-actions">
+          <button id="add" type="button" title="Add rule"><span class="full">Add rule</span><span class="short" aria-hidden="true">+</span></button>
+          <button id="collapse" type="button" aria-expanded="true" aria-label="Hide the rule list" title="Hide the rule list ([)">«</button>
+        </div>
       </div>
       <p id="notice" class="notice" role="alert" hidden></p>
       <ul id="rules" class="rules" aria-label="Rules"></ul>

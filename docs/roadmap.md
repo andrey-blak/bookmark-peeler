@@ -28,6 +28,9 @@
   - Selecting another rule, adding one or duplicating while the editor has unsaved changes asks "Save", "Discard" or "Cancel". Closing the tab with unsaved changes shows the browser's warning.
   - Save always works: a rule with errors is stored but not applied, and the editor says so. Revert goes back to the stored version; for a new rule it clears the form.
   - Duplicate creates an unsaved draft named "<name> copy".
+  - "Try it" sits in the editor above Save. The URL field is remembered between visits without any Save. A switch "All rules" (the default) | "Current rule" chooses what is run: the unsaved draft alone, or the stored rules in order with the draft in place of its stored version (after them when it is new). The cleaned URL is shown with the changed parameters highlighted, and notes say why the rule did nothing: it has errors, it is switched off in the list, or the domain or path does not match.
+  - Under the result, a "What changed (N)" list, collapsed by default: a green ✓ before "Changed" and a red ✕ before "Removed", with no coloured background so they do not look like warnings or errors; in "All rules" each line names the rule that made the change.
+  - The rule list collapses to a narrow strip with the initial of each rule, with the « button or the `[` key (not while typing in a field). The state is remembered.
   - Add action is a menu with "Remove parameter" and "Replace in parameter or value". Actions are not reorderable yet.
   - The Domain field's placeholder is `example.com`.
 
@@ -44,14 +47,14 @@
 8. Main page: rule list (enable, delete with undo, reorder by drag and keyboard), toolbar button opens the page. Rules cannot be added yet, so they are put into storage by hand, see [tests.md](tests.md). (done; checked manually in Firefox)
 9. Main page: rule editor with the Add rule button, Save (Ctrl+S) and Revert, Duplicate, validation messages, and the unsaved changes prompt. (done; checked manually in Firefox, except the two fixes made after the check: the Add action menu and the messages shown on opening a stored rule)
 9a. Refactoring: the replace action's `name` field and the remove action's `param` field are now both `parameter`, and `param`/`params` in the code are `parameter`/`parameters`, so a rule's own `name` is not confused with a parameter. Rules saved with the old fields lose their parameter filter or their remove action and have to be created again; nothing has been released yet, so there is no migration.
-10. Main page: live URL tester.
+10. Main page: live URL tester, collapsible rule list.
 11. Import / export (placed outside the rule list), presets.
 12. Option to clean edited bookmarks; optional bulk clean of existing bookmarks and undo.
 13. Optional: sync rules between devices with `storage.sync`.
     - Limits: 100 KiB in total, 8 KiB per item, 512 items, so store one key per rule.
     - On conflict the server's value wins per key, so changes from `onChanged` have to be merged.
 14. Optional: empty state on first run, a short invitation with an Add rule button (and the presets once they exist).
-15. Optional: settings for the keyboard shortcuts (now Ctrl+Up, Ctrl+Down, Delete, Ctrl+Z, Ctrl+S) and for how long Undo stays available, in seconds (now 8).
+15. Optional: settings for the keyboard shortcuts (now Ctrl+Up, Ctrl+Down, Delete, Ctrl+Z, Ctrl+S, `[`) and for how long Undo stays available, in seconds (now 8).
 16. Optional proper icons: delete, add.
 17. Optional: reorder the actions of a rule.
 18. Optional: keep only the specified parameters (an allowlist), removing all the others.

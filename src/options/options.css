@@ -5,12 +5,14 @@
   --line: rgba(128, 128, 128, 0.35);
   --danger: #d70022;
   --warning: #a85400;
+  --success: #1e7b34;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --danger: #ff7a85;
     --warning: #ffb340;
+    --success: #6fd283;
   }
 }
 
@@ -401,4 +403,215 @@ dialog .buttons {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Try it */
+
+.tester {
+  margin-top: 28px;
+}
+
+.tester-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tester-head h3 {
+  margin: 0;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.segmented label {
+  position: relative;
+  cursor: pointer;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+}
+
+.segmented span {
+  display: block;
+  padding: 3px 12px;
+}
+
+.segmented input:checked + span {
+  background: AccentColor;
+  color: AccentColorText;
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid AccentColor;
+  outline-offset: -2px;
+}
+
+.result {
+  margin-top: 16px;
+}
+
+.result-url {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+  font-family: monospace;
+  overflow-wrap: anywhere;
+}
+
+.result-url .changed {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: GrayText;
+  font-size: 0.85em;
+}
+
+.changes[hidden] {
+  display: none;
+}
+
+.changes summary {
+  margin-top: 16px;
+  color: GrayText;
+  cursor: pointer;
+}
+
+.changes ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.changes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding: 3px 0;
+}
+
+.changes .mark {
+  flex: none;
+  width: 1.2em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.changes .mark.ok {
+  color: var(--success);
+}
+
+.changes .mark.rm {
+  color: var(--danger);
+}
+
+.changes .mono {
+  font-family: monospace;
+  overflow-wrap: anywhere;
+}
+
+.changes .by {
+  color: GrayText;
+}
+
+.changes .by strong {
+  color: CanvasText;
+  font-weight: 700;
+}
+
+/* Collapsed rule list: a narrow strip of squares with the initial of each rule */
+
+.sidebar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+#add .short {
+  display: none;
+}
+
+@media (min-width: 701px) {
+  body.collapsed main {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+body.collapsed .sidebar-head {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+body.collapsed #rules-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+body.collapsed .sidebar-actions {
+  flex-direction: column;
+}
+
+body.collapsed #add .full {
+  display: none;
+}
+
+body.collapsed #add .short {
+  display: inline;
+}
+
+body.collapsed .rule .grip,
+body.collapsed .rule input[type="checkbox"],
+body.collapsed .rule .status,
+body.collapsed .rule .delete,
+body.collapsed .rule .title,
+body.collapsed .rule .subtitle {
+  display: none;
+}
+
+body.collapsed .rule {
+  justify-content: center;
+  padding: 4px;
+}
+
+body.collapsed .rule .main {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+body.collapsed .rule .main::before {
+  content: attr(data-initial);
+}
+
+body.collapsed .rule[data-status="error"] .main {
+  border-color: var(--danger);
+}
+
+body.collapsed .rule[data-status="warning"] .main {
+  border-color: var(--warning);
+}
+
+body.collapsed .rule.unsaved .main::after {
+  content: "•";
+  color: AccentColor;
 }
