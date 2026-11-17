@@ -22,7 +22,7 @@ export function createSettings(root, { onCleanOnEdit, onClean, onRestore }) {
       el("label", { className: "setting-row check" },
         checkbox,
         el("span", {},
-          "Also clean a bookmark when its address is edited",
+          "Also clean a bookmark when its URL is edited",
           el("span", { className: "hint block" }, "Off: only new bookmarks are cleaned."))),
       el("div", { className: "setting-row" },
         el("button", { type: "button", textContent: "Clean existing bookmarks…", dataset: { clean: "" } }),
