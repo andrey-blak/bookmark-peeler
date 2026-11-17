@@ -10,7 +10,7 @@ They run with the project-local Node (see [development.md](development.md)) and 
 The tests are in `tests/unit/`, one file per module:
 
 - `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
-- `src/background/`: what happens when a bookmark is created or edited (including the guard against the add-on's own writes) and the bulk address changes, with a fake browser.
+- `src/background/`: what happens when a bookmark is created or edited (including the guard against the add-on's own writes) and the bulk URL changes, with a fake browser.
 - `src/options/`: the logic of the rule list and of selecting several rules, the rule editor, the "Try it" panel, import and export, the presets, and the scan and undo of "Clean existing bookmarks", without DOM.
 - The manifest: permissions, background page, options page and icons.
 
@@ -146,21 +146,21 @@ Have two or three rules, for example "Tracking parameters" and the GitHub visibi
 1. In the add-on's console, switch the setting on and add the YouTube rule from "Background wiring":
    `await browser.storage.local.set({ schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [{ scope: { type: "host", host: "youtube.com" }, actions: [{ type: "remove", parameter: "pp" }] }] })`
 2. Make a bookmark of any other page. Open its Properties (Library, or right-click, Edit Bookmark…), and set its Location to `https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D`. After saving, the Location shows no `pp`.
-3. Change only the title of a bookmark that has such an address: the address is not touched (the rule is applied to edited addresses only).
-4. Switch the setting off (`cleanOnEdit: false`) and repeat step 2: the address keeps its `pp`.
-5. No loop: switch the setting on, make a rule that changes its own output (all sites, Replace, Value pattern `$`, replacement `x`), and edit a bookmark's address to `https://example.com/?a=1`. The address ends as `https://example.com/?a=1x`, once, not `1xxxx…`, and the Library does not flicker.
+3. Change only the title of a bookmark that has such an URL: the URL is not touched (the rule is applied to edited URLs only).
+4. Switch the setting off (`cleanOnEdit: false`) and repeat step 2: the URL keeps its `pp`.
+5. No loop: switch the setting on, make a rule that changes its own output (all sites, Replace, Value pattern `$`, replacement `x`), and edit a bookmark's URL to `https://example.com/?a=1`. The URL ends as `https://example.com/?a=1x`, once, not `1xxxx…`, and the Library does not flicker.
 
 ### Settings and "Clean existing bookmarks"
 
 Have some bookmarks with tracking parameters (for example `https://example.com/?a=1&utm_source=x`) and the "Tracking parameters" preset saved.
 
 1. The header has a Settings button. It opens a panel in place of the editor, titled "Settings", without a back button; pressing the Settings button again, clicking a rule in the list, or Add rule goes back to the editor. The button looks pressed while the panel is open.
-2. The checkbox "Also clean a bookmark when its address is edited" is off by default. Tick it, reload the page: it stays ticked, and `await browser.storage.local.get("settings")` shows `cleanOnEdit: true`. Untick it again.
-3. "Clean existing bookmarks…" opens a dialog: first "Looking at your bookmarks…", then "N of M bookmarks would change." The changes are in a "Show the changes (N)" list that is open when the dialog appears (click its arrow to collapse it): each shows the title, and under it two columns, Before and After, with the old and the new address. Parameters that were removed or rewritten are marked red in Before, and the new or rewritten ones green in After, in the text colour and not bold. A switch above the list, "Text colour" | "Background", changes how they are marked (the choice is remembered; it is there to compare the two). With more than 50 changes the list shows 50 and a "Show more… (K left)" button that adds the next 50.
+2. The checkbox "Also clean a bookmark when its URL is edited" is off by default. Tick it, reload the page: it stays ticked, and `await browser.storage.local.get("settings")` shows `cleanOnEdit: true`. Untick it again.
+3. "Clean existing bookmarks…" opens a dialog: first "Looking at your bookmarks…", then "N of M bookmarks would change." The changes are in a "Show the changes (N)" list that is open when the dialog appears (click its arrow to collapse it): each shows the title, and under it two columns, Before and After, with the old and the new URL. Parameters that were removed or rewritten are marked red in Before, and the new or rewritten ones green in After, in the text colour and not bold. A switch above the list, "Text colour" | "Background", changes how they are marked (the choice is remembered; it is there to compare the two). With more than 50 changes the list shows 50 and a "Show more… (K left)" button that adds the next 50.
 4. Cancel (or Esc) changes nothing. With no matching bookmark the dialog says "No bookmark would change" and has only Close.
 5. "Clean N bookmarks": a message "Cleaning…", then "Cleaned N bookmarks." with Undo. Check a few bookmarks in the Library: the tracking parameters are gone. Folders, separators and non-web bookmarks (for example `place:` queries) are untouched.
-6. Undo, or Ctrl+Z while the message is shown: the old addresses are back. Clean again, wait until the message has gone, and open Settings: "Restore the last cleaned bookmarks" with "N bookmarks, until you close this page." Press it: they are restored, and the button goes away.
-7. Clean, then edit one cleaned bookmark's address by hand, then restore: that bookmark is left as you edited it, and the message says how many were left.
+6. Undo, or Ctrl+Z while the message is shown: the old URLs are back. Clean again, wait until the message has gone, and open Settings: "Restore the last cleaned bookmarks" with "N bookmarks, until you close this page." Press it: they are restored, and the button goes away.
+7. Clean, then edit one cleaned bookmark's URL by hand, then restore: that bookmark is left as you edited it, and the message says how many were left.
 8. With "Also clean when edited" ticked, clean existing bookmarks with a rule that changes its own output (see "Clean when edited" step 5): each bookmark is changed once.
 9. Reload the page after a clean: the "Restore" button is gone (it only lasts while the page is open).
 
