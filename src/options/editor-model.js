@@ -81,6 +81,45 @@ export function addAction(draft, type) {
   return { ...draft, actions: [...(draft.actions ?? []), make()] };
 }
 
+/** Moves the action at `from` to position `to` (clamped to the list), as the actions run top to bottom. */
+export function moveAction(draft, from, to) {
+  const actions = draft.actions;
+  if (!Array.isArray(actions) || !Number.isInteger(from) || from < 0 || from >= actions.length) return draft;
+
+  const target = Math.max(0, Math.min(to, actions.length - 1));
+  const moved = [...actions];
+  const [action] = moved.splice(from, 1);
+  moved.splice(target, 0, action);
+  return { ...draft, actions: moved };
+}
+
+/**
+ * The set of touched fields after the action at `from` was moved to `to`: what was touched in the moved action
+ * follows it, and the actions it passed shift by one, so messages stay with their action.
+ */
+export function remapTouched(touched, from, to) {
+  const shift = index => {
+    if (index === from) return to;
+    if (from < to && index > from && index <= to) return index - 1;
+    if (to < from && index >= to && index < from) return index + 1;
+    return index;
+  };
+
+  return new Set([...touched].map(key => {
+    const match = /^actions\.(\d+)(.*)$/.exec(key);
+    return match ? `actions.${shift(Number(match[1]))}${match[2]}` : key;
+  }));
+}
+
+/**
+ * The position to give moveAction when the action at `from` is dropped on the action at `over`,
+ * on its lower half (`after`) or upper half.
+ */
+export function actionDropIndex(from, over, after) {
+  const to = over + (after ? 1 : 0);
+  return from < to ? to - 1 : to;
+}
+
 // --- Validation messages ---
 
 /**

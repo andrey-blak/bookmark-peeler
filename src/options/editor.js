@@ -10,6 +10,9 @@ import {
   scopeMode,
   setScopeMode,
   addAction,
+  moveAction,
+  remapTouched,
+  actionDropIndex,
   visibleIssues,
   summaryText,
   isDirty,
@@ -116,11 +119,32 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
   function actionCard(action, index) {
     const heading = { remove: "Remove parameter", replace: "Replace in parameter or value" }[action?.type] ?? "Unknown action";
 
-    const card = el("div", { className: "card" },
+    const count = draft.actions.length;
+    const mover = (direction, disabled) => {
+      const button = el("button", {
+        type: "button",
+        textContent: direction === "up" ? "↑" : "↓",
+        title: `Move ${direction} (Ctrl+Alt+${direction === "up" ? "Up" : "Down"})`,
+        disabled,
+        dataset: { moveAction: direction, actionIndex: String(index) },
+      });
+      button.setAttribute("aria-label", `Move action ${index + 1} ${direction}`);
+      return button;
+    };
+
+    const remove = el("button", { type: "button", textContent: "×", title: "Delete action", dataset: { removeAction: String(index) } });
+    remove.setAttribute("aria-label", `Delete action ${index + 1}`);
+
+    const grip = el("span", { className: "grip", draggable: true, title: "Drag to reorder", dataset: { actionGrip: String(index) } }, "⋮⋮");
+    grip.setAttribute("aria-hidden", "true");
+
+    const card = el("div", { className: "card", dataset: { actionIndex: String(index) } },
       el("div", { className: "card-head" },
+        grip,
         el("strong", {}, heading),
-        el("button", { type: "button", textContent: "×", title: "Delete action", dataset: { removeAction: String(index) } })));
-    card.querySelector("button").setAttribute("aria-label", `Delete action ${index + 1}`);
+        mover("up", index === 0),
+        mover("down", index === count - 1),
+        remove));
 
     if (action?.type === "remove") {
       card.append(textField("Parameter", ["actions", index, "parameter"], "utm_*", { mono: true }));
@@ -289,14 +313,20 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
     return null;
   }
 
-  function redraw(focusSelectorOverride = null) {
+  /**
+   * Draws the form again and puts the focus back: on `focusSelectorOverride` if given, else on the field that had it.
+   * `options.caret` is [start, end] for a text field, `options.fallback` a selector to use when the first one is disabled.
+   */
+  function redraw(focusSelectorOverride = null, { caret: caretOverride = null, fallback = null } = {}) {
     const active = document.activeElement;
     const selector = focusSelectorOverride ?? (root.contains(active) ? focusSelector(active) : null);
-    const caret = active?.selectionStart !== undefined && !focusSelectorOverride ? [active.selectionStart, active.selectionEnd] : null;
+    const hasCaret = typeof active?.selectionStart === "number" && !focusSelectorOverride;
+    const caret = caretOverride ?? (hasCaret ? [active.selectionStart, active.selectionEnd] : null);
 
     draw();
 
-    const target = selector ? root.querySelector(selector) : null;
+    let target = selector ? root.querySelector(selector) : null;
+    if (target?.disabled && fallback) target = root.querySelector(fallback);
     if (target) {
       target.focus();
       if (caret && target.setSelectionRange) target.setSelectionRange(...caret);
@@ -364,6 +394,13 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
   root.addEventListener("click", event => {
     if (draft === null) return;
 
+    const move = event.target.closest("[data-move-action]");
+    if (move) {
+      const from = Number(move.dataset.actionIndex);
+      moveCard(from, from + (move.dataset.moveAction === "up" ? -1 : 1));
+      return;
+    }
+
     const remove = event.target.closest("[data-remove-action]");
     if (remove) {
       draft = unsetIn(draft, ["actions", Number(remove.dataset.removeAction)]);
@@ -387,6 +424,121 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
   root.addEventListener("toggle", event => {
     if (event.target.matches("details.changes")) tester.open = event.target.open;
   }, true);
+
+  /** Where the focus goes when the action at `from` moves to `to`: the same control of the moved card. */
+  function movedFocus(active, from, to) {
+    const { path, replacePath, moveAction: direction, removeAction } = active.dataset;
+    const reindex = key => key.replace(new RegExp(`^actions\\.${from}(?=\\.|$)`), `actions.${to}`);
+
+    if (path !== undefined && path.startsWith(`actions.${from}.`)) {
+      return { selector: `input[data-path="${reindex(path)}"]` };
+    }
+    if (replacePath !== undefined && replacePath.startsWith(`actions.${from}.`)) {
+      return { selector: `input[data-replace-path="${reindex(replacePath)}"]` };
+    }
+    if (direction !== undefined) {
+      const other = direction === "up" ? "down" : "up";
+      return {
+        selector: `button[data-move-action="${direction}"][data-action-index="${to}"]`,
+        fallback: `button[data-move-action="${other}"][data-action-index="${to}"]`,
+      };
+    }
+    if (removeAction !== undefined && Number(removeAction) === from) {
+      return { selector: `button[data-remove-action="${to}"]` };
+    }
+    return { selector: null };
+  }
+
+  /** Moves an action to another place. The focus stays on the same control of that card, and its messages go with it. */
+  function moveCard(from, to) {
+    const target = Math.max(0, Math.min(to, draft.actions.length - 1));
+    if (from < 0 || from >= draft.actions.length || target === from) return;
+
+    const active = document.activeElement;
+    const focus = root.contains(active) ? movedFocus(active, from, target) : { selector: null };
+    const caret = typeof active?.selectionStart === "number" ? [active.selectionStart, active.selectionEnd] : null;
+
+    draft = moveAction(draft, from, target);
+    touched = remapTouched(touched, from, target);
+    changed();
+    redraw(focus.selector, { caret, fallback: focus.fallback });
+  }
+
+  // Ctrl+Alt+Up and Ctrl+Alt+Down move the action that has the focus.
+  // Only inside an action card, so the Scope and Add action menus are not touched.
+  root.addEventListener("keydown", event => {
+    if (draft === null || !event.altKey || !event.ctrlKey || event.shiftKey || event.metaKey) return;
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+
+    const card = event.target.closest(".card[data-action-index]");
+    if (!card || event.target.closest("select")) return;
+
+    event.preventDefault();
+    const from = Number(card.dataset.actionIndex);
+    moveCard(from, from + (event.key === "ArrowUp" ? -1 : 1));
+  });
+
+  // Dragging an action by its handle.
+  let dragFrom = null;
+  let dropTarget = null; // { over, after }
+
+  const clearDropLine = () => {
+    for (const card of root.querySelectorAll(".card.drop-before, .card.drop-after")) {
+      card.classList.remove("drop-before", "drop-after");
+    }
+  };
+
+  const endDrag = () => {
+    dragFrom = null;
+    dropTarget = null;
+    clearDropLine();
+    for (const card of root.querySelectorAll(".card.dragging")) card.classList.remove("dragging");
+  };
+
+  root.addEventListener("dragstart", event => {
+    const grip = event.target.closest?.("[data-action-grip]");
+    if (!grip || draft === null) return;
+
+    dragFrom = Number(grip.dataset.actionGrip);
+    const card = grip.closest(".card");
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(dragFrom));
+    event.dataTransfer.setDragImage(card, 16, 16);
+    card.classList.add("dragging");
+  });
+
+  root.addEventListener("dragover", event => {
+    if (dragFrom === null) return;
+
+    const card = event.target.closest?.(".card[data-action-index]");
+    clearDropLine();
+
+    // Dropping on the card that is being dragged does nothing, so it is not offered.
+    if (!card || Number(card.dataset.actionIndex) === dragFrom) {
+      dropTarget = null;
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    const box = card.getBoundingClientRect();
+    const after = event.clientY > box.top + box.height / 2;
+    dropTarget = { over: Number(card.dataset.actionIndex), after };
+    card.classList.add(after ? "drop-after" : "drop-before");
+  });
+
+  root.addEventListener("drop", event => {
+    if (dragFrom === null || dropTarget === null) return;
+
+    event.preventDefault();
+    const from = dragFrom;
+    const to = actionDropIndex(from, dropTarget.over, dropTarget.after);
+    endDrag();
+    moveCard(from, to);
+  });
+
+  root.addEventListener("dragend", endDrag);
 
   function revert() {
     draft = clone(baseline);

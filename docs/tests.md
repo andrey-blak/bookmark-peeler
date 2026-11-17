@@ -179,3 +179,15 @@ Have six rules, A to F, in that order, some enabled and some switched off.
 9. With unsaved changes in the editor, Ctrl+click or Shift+click on another rule asks Save, Discard or Cancel. Cancel keeps the selection and the editor as they were.
 10. In the collapsed list the same clicks and keys work on the squares.
 11. Dragging several rules: select B and C (or B and E with Ctrl+click) and drag one of them over the list. All selected rules are shown as being dragged, and a line shows where they will land. Drop them between D and E: they land together in their order (B, C, or B, E). Dropping them on one of the selected rules, or on themselves, does nothing and shows no line. The selection stays after the drop. Reload: the order stays.
+
+### Main page: reordering the actions of a rule
+
+Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$` renamed to `c`), and Remove `c`, and put a URL such as `https://example.com/?a=1&b=2` in "Try it".
+
+1. Each action card has a drag handle (⋮⋮), Move up (↑), Move down (↓) and Delete (×) in its header. On the first card Move up is greyed out, and on the last card Move down is.
+2. Press Move down on the first card: it goes to second place and the card keeps its fields. The focus stays on the Move down button of that card, now at its new place. The result in "Try it" changes at once, because actions run top to bottom. The row in the list shows the unsaved mark.
+3. Move the last card up with its Move up button until it is first: when it reaches the end, the focus jumps to the other move button of that card, which is still enabled.
+4. Ctrl+Alt+Up and Ctrl+Alt+Down with the focus in a field of a card move that card, and the focus and the text cursor stay in the same field. On the first card Ctrl+Alt+Up, and on the last Ctrl+Alt+Down, does nothing.
+5. Drag a card by its handle over another: a line shows where it will land (above or below, by the half of the card you are over). Drop it: the cards are reordered. Dropping on the dragged card itself shows no line and changes nothing. Drag the whole card by a text field: nothing moves (only the handle drags).
+6. Messages follow the card: give the card with the invalid regex an error, move it, and the red message and the outlined field are on the moved card, not on the card that took its place.
+7. Revert brings the old order back; Save stores the new order, and after a reload the actions are in it.

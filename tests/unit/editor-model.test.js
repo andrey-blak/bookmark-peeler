@@ -10,6 +10,9 @@ import {
   scopeMode,
   setScopeMode,
   addAction,
+  moveAction,
+  remapTouched,
+  actionDropIndex,
   visibleIssues,
   summaryText,
   isDirty,
@@ -334,5 +337,118 @@ describe("building the Example visibility rule step by step", () => {
   test("ticking it again gives an empty replacement", () => {
     const draft = setIn(unsetIn(build(), ["actions", 0, "value", "replace"]), ["actions", 0, "value", "replace"], "");
     assert.equal(draft.actions[0].value.replace, "");
+  });
+});
+
+describe("moveAction", () => {
+  const withActions = (...params) => ({
+    id: "r",
+    scope: { type: "all" },
+    actions: params.map(parameter => ({ type: "remove", parameter })),
+  });
+  const order = draft => draft.actions.map(a => a.parameter).join("");
+
+  test("moves an action down and up", () => {
+    assert.equal(order(moveAction(withActions("a", "b", "c", "d"), 0, 2)), "bcad");
+    assert.equal(order(moveAction(withActions("a", "b", "c", "d"), 3, 1)), "adbc");
+  });
+
+  test("moves by one place", () => {
+    assert.equal(order(moveAction(withActions("a", "b", "c"), 1, 2)), "acb");
+    assert.equal(order(moveAction(withActions("a", "b", "c"), 1, 0)), "bac");
+  });
+
+  test("the target is clamped to the list", () => {
+    assert.equal(order(moveAction(withActions("a", "b", "c"), 1, -5)), "bac");
+    assert.equal(order(moveAction(withActions("a", "b", "c"), 1, 99)), "acb");
+  });
+
+  test("moving to the same place, or from outside the list, changes nothing", () => {
+    assert.equal(order(moveAction(withActions("a", "b", "c"), 1, 1)), "abc");
+    assert.equal(order(moveAction(withActions("a", "b", "c"), -1, 1)), "abc");
+    assert.equal(order(moveAction(withActions("a", "b", "c"), 7, 1)), "abc");
+  });
+
+  test("keeps the action objects and everything else in the draft, and does not modify the input", () => {
+    const draft = withActions("a", "b", "c");
+    const moved = moveAction(draft, 0, 2);
+    assert.notEqual(moved, draft);
+    assert.equal(moved.actions[2], draft.actions[0]);
+    assert.equal(moved.id, "r");
+    assert.deepEqual(moved.scope, { type: "all" });
+    assert.equal(order(draft), "abc");
+  });
+
+  test("a draft without actions is returned as it is", () => {
+    const draft = { id: "r", scope: { type: "all" } };
+    assert.deepEqual(moveAction(draft, 0, 1), draft);
+  });
+
+  test("the order changes what the rule does", () => {
+    const rule = {
+      scope: { type: "all" },
+      actions: [
+        { type: "replace", parameter: { find: "^a$", replace: "b" } },
+        { type: "remove", parameter: "b" },
+      ],
+    };
+    assert.equal(cleanUrl("https://example.org/?a=1&c=2", [rule]), "https://example.org/?c=2");
+    assert.equal(cleanUrl("https://example.org/?a=1&c=2", [moveAction(rule, 0, 1)]), "https://example.org/?b=1&c=2");
+  });
+});
+
+describe("remapTouched", () => {
+  const touched = keys => new Set(keys);
+  const sorted = set => [...set].sort();
+
+  test("the touched fields of the moved action follow it", () => {
+    const result = remapTouched(touched(["actions.0.parameter", "actions.0.value.find"]), 0, 2);
+    assert.deepEqual(sorted(result), ["actions.2.parameter", "actions.2.value.find"]);
+  });
+
+  test("the actions it passes shift by one, down or up", () => {
+    assert.deepEqual(sorted(remapTouched(touched(["actions.1.parameter", "actions.2.parameter"]), 0, 2)), ["actions.0.parameter", "actions.1.parameter"]);
+    assert.deepEqual(sorted(remapTouched(touched(["actions.0.parameter", "actions.1.parameter"]), 2, 0)), ["actions.1.parameter", "actions.2.parameter"]);
+  });
+
+  test("actions outside the moved range, and fields that are not actions, stay", () => {
+    const result = remapTouched(touched(["name", "scope.host", "actions", "actions.0.parameter", "actions.5.parameter"]), 1, 3);
+    assert.deepEqual(sorted(result), ["actions", "actions.0.parameter", "actions.5.parameter", "name", "scope.host"]);
+  });
+
+  test("an action key without a field behind it is moved too", () => {
+    assert.deepEqual(sorted(remapTouched(touched(["actions.1"]), 1, 0)), ["actions.0"]);
+  });
+
+  test("does not modify the set it is given", () => {
+    const original = touched(["actions.0.parameter"]);
+    remapTouched(original, 0, 1);
+    assert.deepEqual(sorted(original), ["actions.0.parameter"]);
+  });
+});
+
+describe("actionDropIndex", () => {
+  const dropped = (from, over, after) => {
+    const list = ["a", "b", "c", "d"].map(parameter => ({ type: "remove", parameter }));
+    return moveAction({ actions: list }, from, actionDropIndex(from, over, after)).actions.map(a => a.parameter).join("");
+  };
+
+  test("dropping before a card puts the dragged one just in front of it", () => {
+    assert.equal(dropped(0, 2, false), "bacd");
+    assert.equal(dropped(3, 1, false), "adbc");
+    assert.equal(dropped(3, 0, false), "dabc");
+  });
+
+  test("dropping after a card puts the dragged one just behind it", () => {
+    assert.equal(dropped(0, 2, true), "bcad");
+    assert.equal(dropped(3, 0, true), "adbc");
+    assert.equal(dropped(0, 3, true), "bcda");
+  });
+
+  test("dropping next to itself changes nothing", () => {
+    assert.equal(dropped(1, 1, false), "abcd");
+    assert.equal(dropped(1, 1, true), "abcd");
+    assert.equal(dropped(1, 0, true), "abcd");
+    assert.equal(dropped(1, 2, false), "abcd");
   });
 });
