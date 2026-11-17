@@ -106,6 +106,8 @@ Start with the rules from the previous section, or an empty list.
 15. Messages on opening a stored rule: a rule without actions shows "This rule has no actions, so it does nothing." under "Actions" as soon as it is opened. Save a new rule without actions, select another rule and come back: the warning is still there. "Has an error" shows "Enter a domain." under Domain at once. After changing a field of a stored rule and pressing Revert, the messages are still shown. A new rule shows no message until you type in it.
 16. Domain and path fields: the Path placeholder is `video` and its hint shows `albums/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. The Subdomains option includes subdomains." A path without the leading slash (`new`) still matches `/new`.
 17. End to end: create "Remove pp" for `example.com`, action Remove parameter `pp`, and Save. Bookmark an example.com URL with `&pp=...`: the saved bookmark has no `pp`.
+18. A stored rule that you have just opened has both greyed out. Change a field: both become active, and Ctrl+S saves. Change it back to what it was: both are greyed out again. Save: Save and Revert are greyed out, and "Saved." is shown. With Save greyed out, Ctrl+S does nothing, and the browser's own "Save page" dialog does not open either.
+19. A new rule from Add rule, Duplicate or a preset has Save active at once, so a preset or a copy can be saved as it is. Revert is greyed out until you change something, and then clears the form. After Save, the rule is stored and both buttons are greyed out. Switching a rule on or off in the list does not make Save active.
 
 ### Main page: "Try it"
 

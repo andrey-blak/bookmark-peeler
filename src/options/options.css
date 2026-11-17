@@ -425,6 +425,12 @@ main {
   font: inherit;
 }
 
+.primary:disabled {
+  background: ButtonFace;
+  color: GrayText;
+  border-color: ButtonBorder;
+}
+
 dialog form p {
   margin: 0 0 12px;
 }

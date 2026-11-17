@@ -164,6 +164,19 @@ export function isDirty(draft, baseline) {
   return stored(draft) !== stored(baseline);
 }
 
+/**
+ * Save does something when the rule is new, so it is not stored yet, or differs from the stored one.
+ * A new rule from Duplicate or a preset is unchanged but can still be saved.
+ */
+export function canSave(draft, baseline, isNew) {
+  return isNew || isDirty(draft, baseline);
+}
+
+/** Revert does something only when the draft differs from where it started. */
+export function canRevert(draft, baseline) {
+  return isDirty(draft, baseline);
+}
+
 /** An unsaved copy of a rule with its own id; a named rule gets "<name> copy". */
 export function duplicateDraft(rule) {
   const copy = structuredClone(rule);

@@ -16,6 +16,8 @@ import {
   visibleIssues,
   summaryText,
   isDirty,
+  canSave,
+  canRevert,
   duplicateDraft,
   isSaveKey,
 } from "../../src/options/editor-model.js";
@@ -250,6 +252,47 @@ describe("isDirty", () => {
     const draft = newDraft();
     assert.equal(isDirty(draft, draft), false);
     assert.equal(isDirty(setIn(draft, ["scope", "host"], "a"), draft), true);
+  });
+});
+
+describe("canSave and canRevert", () => {
+  const stored = () => ({ id: "r", enabled: true, name: "A", scope: { type: "host", host: "example.com", subdomains: true }, actions: [{ type: "remove", parameter: "x" }] });
+
+  test("a stored rule without changes: nothing to save, nothing to revert", () => {
+    assert.equal(canSave(stored(), stored(), false), false);
+    assert.equal(canRevert(stored(), stored()), false);
+  });
+
+  test("a stored rule with a change: both are possible", () => {
+    const changed = setIn(stored(), ["scope", "host"], "example.org");
+    assert.equal(canSave(changed, stored(), false), true);
+    assert.equal(canRevert(changed, stored()), true);
+  });
+
+  test("changing something and changing it back leaves nothing to save", () => {
+    const back = setIn(setIn(stored(), ["name"], "B"), ["name"], "A");
+    assert.equal(canSave(back, stored(), false), false);
+    assert.equal(canRevert(back, stored()), false);
+  });
+
+  test("a new rule can always be saved, even when nothing was changed (a duplicate or a preset)", () => {
+    const fresh = newDraft();
+    assert.equal(canSave(fresh, fresh, true), true);
+  });
+
+  test("a new rule has something to revert only after a change", () => {
+    const fresh = newDraft();
+    assert.equal(canRevert(fresh, fresh), false);
+    assert.equal(canRevert(setIn(fresh, ["scope", "host"], "example.com"), fresh), true);
+  });
+
+  test("the switch in the list is not part of the editor, so it does not make anything to save", () => {
+    assert.equal(canSave({ ...stored(), enabled: false }, stored(), false), false);
+    assert.equal(canRevert({ ...stored(), enabled: false }, stored()), false);
+  });
+
+  test("a difference that is not stored does not count", () => {
+    assert.equal(canSave({ ...stored(), name: "  A " }, stored(), false), false);
   });
 });
 

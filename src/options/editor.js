@@ -16,6 +16,8 @@ import {
   visibleIssues,
   summaryText,
   isDirty,
+  canSave,
+  canRevert,
 } from "./editor-model.js";
 import { ruleTitle } from "./rule-list.js";
 import { testRules, describeChange } from "./tester.js";
@@ -297,6 +299,12 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
 
     const summary = root.querySelector("#summary");
     if (summary) summary.textContent = summaryText(visible) || (justSaved ? "Saved." : "");
+
+    // Each button is active only when it would do something.
+    const save = root.querySelector("[data-save]");
+    const revert = root.querySelector("[data-revert]");
+    if (save) save.disabled = !canSave(draft, baseline, isNew);
+    if (revert) revert.disabled = !canRevert(draft, baseline);
 
     refreshTester();
   }
@@ -608,6 +616,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
     get id() { return draft?.id ?? null; },
     get title() { return draft?.name?.trim() || "New rule"; },
     isDirty: () => draft !== null && isDirty(draft, baseline),
+    canSave: () => draft !== null && canSave(draft, baseline, isNew),
     snapshot: () => (draft === null ? null : clone(draft)),
     toRule: () => normalizeRule(draft),
   };

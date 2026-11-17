@@ -667,8 +667,9 @@ const EDITABLE = 'input:not([type="checkbox"]):not([type="radio"]), textarea, se
 document.addEventListener("keydown", event => {
   if (isSaveKey(event)) {
     if (editor.isOpen && view === "rules") {
+      // The browser's own "Save page" is always blocked here, and the rule is saved only when the Save button is active.
       event.preventDefault();
-      saveEditor();
+      if (editor.canSave()) saveEditor();
     }
     return;
   }
