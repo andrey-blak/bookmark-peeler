@@ -101,7 +101,7 @@ The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down m
 Start with the rules from the previous section, or an empty list.
 
 1. Add rule: the editor opens with an empty Name, Scope "Domain" and an empty Domain showing the `example.com` placeholder. The list gets an italic "New rule" row. No error or warning is visible yet.
-2. Type `example.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter" and "Replace in parameter or value", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
+2. Type `example.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter", "Replace in parameter or value" and "Keep only these parameters", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
 3. Fill in Parameter `^visibility$`, leave "Replace with" unticked there, Value `^public$`, and in the Value replacement `private`. Then type `(` in the Value pattern: a red message about the regular expression appears under it, the field is outlined, and the line next to Save says "1 error. The rule isn't applied until the error is fixed." Fix the pattern.
 4. Untick "Replace with" on the Value line: a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
 5. Press Save (and, in another rule, Ctrl+S while typing in a field: Firefox's "Save page" must not open). The row gets the name, or the domain when the name is empty, the • goes, and "Saved." is shown. Reload the page: the rule is there and opens with the same values.
@@ -238,3 +238,16 @@ Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$`
 2. Delete a rule that has a 64-character name: the message at the bottom shows the first 40 characters of the name followed by "…", for example "Deleted “…”.", and not the whole name. A shorter name is shown in full.
 3. Import a file in which a rule has a name of several hundred characters: the rule is imported and its name is cut to 64 characters. The same happens to such a name already in storage when the page loads.
 4. In the list, a 64-character name is shown with an ellipsis where it does not fit, as before.
+
+### Keep only these parameters
+
+Open a rule and add the action from the Add action menu. Put `https://example.com/video?v=Hn4xT9sBq2L&si=abc&feature=share&utm_source=x` in "Try it".
+
+1. The card is titled "Keep only these parameters" and has a text box and the hint "One parameter per line. * matches any characters. All other parameters are removed." Its header has the drag handle, ↑, ↓ and ×, like the other actions. The focus is in the text box.
+2. Nothing is shown at first. Type `v` and press Enter, then type `t`: the result in "Try it" is `https://example.com/video?v=Hn4xT9sBq2L`, and "What changed" lists `si`, `feature` and `utm_source` as removed. Add the line `utm_*`: `utm_source=x` stays.
+3. Blank lines and spaces around a name do not matter: add a blank line, and spaces before and after `v`. The result does not change, and the rule does not count as changed (Save stays inactive if that was all you changed).
+4. An empty text box, or one with only blank lines, shows the error "Enter at least one parameter." once you have typed in it, and the rule is not applied. Remove all the text: the error is back and the rule shows the error mark in the list.
+5. Parameters match like in Remove: `V` does not keep `v`; a parameter without a value (`?fbclid`) is kept by name; every occurrence of a repeated parameter is kept.
+6. A URL with a stray `&&` (for example `https://example.com/p?a=1&&b=2` with `a` and `b` listed): the result is `https://example.com/p?a=1&b=2`.
+7. Put the keep action first and a Replace action after it: the replace only works on the parameters that were kept. Move the cards with ↑ and ↓: the result changes with the order. Save, reload the page and open the rule: the list is as you typed it, without blank lines.
+8. With the rule saved, bookmark `https://example.com/video?v=Hn4xT9sBq2L&si=abc&feature=share` for the domain: the bookmark keeps only `v`. "Clean existing bookmarks" previews the same change.

@@ -6,6 +6,11 @@
 // A changed parameter name or value is re-encoded with encodeURIComponent; its unchanged counterpart keeps its raw text.
 //
 // remove:  { type: "remove", parameter: "pp" | "utm_*" }
+// keep:    { type: "keep", parameters: ["v", "utm_*"] }
+//   Removes every parameter that is not on the list, with the same matching as remove.
+//   Spaces around a name are trimmed and blank entries are ignored.
+//   A list with no names, or no list, changes nothing, so a half-written rule cannot remove everything.
+//   A part of the query without a name, as in a stray "&&", is not on the list, so it is dropped.
 // replace: { type: "replace",
 //            parameter?: { find, replace? },
 //            value?:     { find, replace? },
@@ -38,6 +43,16 @@ export function nameMatches(pattern, name) {
 
 function removeParameters(action, parameters) {
   return parameters.filter(p => !nameMatches(action.parameter, p.name));
+}
+
+function keepParameters(action, parameters) {
+  const patterns = (Array.isArray(action.parameters) ? action.parameters : [])
+    .filter(entry => typeof entry === "string")
+    .map(entry => entry.trim())
+    .filter(entry => entry !== "");
+
+  if (patterns.length === 0) return parameters;
+  return parameters.filter(parameter => patterns.some(pattern => nameMatches(pattern, parameter.name)));
 }
 
 const INVALID = Symbol("invalid regex");
@@ -102,6 +117,8 @@ export function applyAction(action, parameters) {
   switch (action?.type) {
     case "remove":
       return removeParameters(action, parameters);
+    case "keep":
+      return keepParameters(action, parameters);
     case "replace":
       return replaceParameters(action, parameters);
     default:

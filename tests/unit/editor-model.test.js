@@ -163,6 +163,36 @@ describe("addAction", () => {
   });
 });
 
+describe("keep actions in the editor", () => {
+  test("a new keep action has an empty list", () => {
+    assert.deepEqual(addAction(newDraft(), "keep").actions, [{ type: "keep", parameters: [] }]);
+  });
+
+  test("a fresh keep action is invalid until a parameter is typed", () => {
+    const rule = { scope: { type: "all" }, actions: addAction(newDraft(), "keep").actions };
+    assert.deepEqual(paths(validateRule(rule)), ["actions.0.parameters"]);
+  });
+
+  test("the lines of the text box are kept as typed, including a line still being typed", () => {
+    let draft = addAction(newDraft(), "keep");
+    draft = setIn(draft, ["actions", 0, "parameters"], "v\nt\n".split("\n"));
+    assert.deepEqual(draft.actions[0].parameters, ["v", "t", ""]);
+    assert.equal(draft.actions[0].parameters.join("\n"), "v\nt\n");
+  });
+
+  test("blank lines and spaces are not unsaved changes", () => {
+    const base = { id: "r", scope: { type: "all" }, actions: [{ type: "keep", parameters: ["v", "t"] }] };
+    const typed = setIn(base, ["actions", 0, "parameters"], [" v ", "", "t", ""]);
+    assert.equal(isDirty(typed, base), false);
+    assert.equal(isDirty(setIn(base, ["actions", 0, "parameters"], ["v", "t", "x"]), base), true);
+  });
+
+  test("it can be moved like any other action", () => {
+    const draft = addAction(addAction(newDraft(), "remove"), "keep");
+    assert.deepEqual(moveAction(draft, 1, 0).actions.map(a => a.type), ["keep", "remove"]);
+  });
+});
+
 describe("visibleIssues", () => {
   const issues = [
     { path: ["scope", "host"], severity: "error", message: "Enter a domain." },

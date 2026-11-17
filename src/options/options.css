@@ -889,3 +889,20 @@ dialog .lines li {
   inset-inline-start: 0;
   inset-inline-end: auto;
 }
+
+/* A text box with one entry per line, in an action card */
+
+.editor textarea {
+  min-width: 0;
+  padding: 4px 6px;
+  font: inherit;
+  resize: vertical;
+}
+
+.editor textarea.mono {
+  font-family: monospace;
+}
+
+.editor textarea.invalid {
+  outline: 1px solid var(--danger);
+}

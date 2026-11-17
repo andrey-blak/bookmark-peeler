@@ -162,6 +162,41 @@ describe("rule names are at most NAME_MAX characters", () => {
   });
 });
 
+describe("keep actions", () => {
+  const withKeep = parameters => ({ scope: { type: "all" }, actions: [{ type: "keep", parameters }] });
+
+  test("normalising keeps the list, trimmed, without blank entries", () => {
+    const { actions } = normalizeRule(withKeep([" v ", "", "  ", "t", "utm_*"]));
+    assert.deepEqual(actions, [{ type: "keep", parameters: ["v", "t", "utm_*"] }]);
+  });
+
+  test("entries that are not text are dropped, and a list that is not a list is empty", () => {
+    assert.deepEqual(normalizeRule(withKeep([1, null, "a", {}])).actions[0].parameters, ["a"]);
+    assert.deepEqual(normalizeRule(withKeep("a")).actions[0].parameters, []);
+    assert.deepEqual(normalizeRule({ actions: [{ type: "keep" }] }).actions[0].parameters, []);
+  });
+
+  test("a valid list has no issues", () => {
+    assert.deepEqual(validateRule(withKeep(["v", "t"])), []);
+  });
+
+  test("an empty list, a list of blanks, and a missing list are errors on the list", () => {
+    for (const parameters of [[], ["", "  "], undefined, "a"]) {
+      const issues = validateRule(withKeep(parameters));
+      assert.equal(find(issues, "actions.0.parameters")?.severity, "error", JSON.stringify(parameters));
+      assert.match(find(issues, "actions.0.parameters").message, /at least one parameter/i);
+    }
+  });
+
+  test("an entry that is not text is an error", () => {
+    assert.equal(find(validateRule(withKeep(["a", 5])), "actions.0.parameters")?.severity, "error");
+  });
+
+  test("blank lines among real entries are fine", () => {
+    assert.deepEqual(validateRule(withKeep(["a", "", "  ", "b"])), []);
+  });
+});
+
 describe("normalizeConfig", () => {
   test("always carries the current schema version", () => {
     assert.equal(normalizeConfig({ schemaVersion: 99 }).schemaVersion, SCHEMA_VERSION);

@@ -76,6 +76,23 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     return el("label", { className: "field" }, el("span", { className: hideLabel ? "label sr-only" : "label" }, label), input);
   }
 
+  /** A text box with one entry per line; the draft holds the lines as a list. */
+  function linesField(label, path, placeholder) {
+    const key = pathKey(path);
+    const value = path.reduce((node, part) => node?.[part], draft);
+    const area = el("textarea", {
+      rows: 4,
+      value: Array.isArray(value) ? value.join("\n") : "",
+      placeholder,
+      spellcheck: false,
+      autocomplete: "off",
+      className: "mono",
+      dataset: { path: key },
+    });
+    area.setAttribute("aria-describedby", `msg-${key}`);
+    return el("label", { className: "field" }, el("span", { className: "label" }, label), area);
+  }
+
   function checkbox(label, checked, dataset) {
     const input = el("input", { type: "checkbox", checked, dataset });
     return el("label", { className: "check" }, input, label);
@@ -123,7 +140,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   }
 
   function actionCard(action, index) {
-    const heading = { remove: "Remove parameter", replace: "Replace in parameter or value" }[action?.type] ?? "Unknown action";
+    const heading = {
+      remove: "Remove parameter",
+      replace: "Replace in parameter or value",
+      keep: "Keep only these parameters",
+    }[action?.type] ?? "Unknown action";
 
     const count = draft.actions.length;
     const mover = (direction, disabled) => {
@@ -156,6 +177,10 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       card.append(textField("Parameter", ["actions", index, "parameter"], "utm_*", { mono: true }));
       card.append(el("p", { className: "hint" }, "* matches any characters."));
       card.append(slot(`actions.${index}.parameter`));
+    } else if (action?.type === "keep") {
+      card.append(linesField("Parameters", ["actions", index, "parameters"], "list\nutm_*"));
+      card.append(el("p", { className: "hint" }, "One parameter per line. * matches any characters. All other parameters are removed."));
+      card.append(slot(`actions.${index}.parameters`));
     } else if (action?.type === "replace") {
       card.append(replaceLine(index, "parameter", "Parameter", { find: "^visibility$", replace: "" }));
       card.append(replaceLine(index, "value", "Value", { find: "^public$", replace: "private" }));
@@ -174,7 +199,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       // Shown while closed, but not offered in the list.
       el("option", { value: "", textContent: "Add action…", hidden: true, disabled: true, selected: true }),
       el("option", { value: "remove", textContent: "Remove parameter" }),
-      el("option", { value: "replace", textContent: "Replace in parameter or value" }));
+      el("option", { value: "replace", textContent: "Replace in parameter or value" }),
+      el("option", { value: "keep", textContent: "Keep only these parameters" }));
 
     return el("section", {},
       el("h3", {}, "Actions, run top to bottom"),
@@ -296,7 +322,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       slotEl.className = issue ? `msg ${issue.severity}` : "msg";
     }
 
-    for (const input of root.querySelectorAll("input[data-path]")) {
+    for (const input of root.querySelectorAll("input[data-path], textarea[data-path]")) {
       const invalid = visible.some(i => i.severity === "error" && pathKey(i.path) === input.dataset.path);
       input.classList.toggle("invalid", invalid);
       input.setAttribute("aria-invalid", String(invalid));
@@ -318,7 +344,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
   function focusSelector(node) {
     const { path, replacePath, scopeMode: mode, addAction: add, testUrl, testMode } = node.dataset;
-    if (path !== undefined) return `input[data-path="${path}"]`;
+    if (path !== undefined) return `input[data-path="${path}"], textarea[data-path="${path}"]`;
     if (testUrl !== undefined) return "input[data-test-url]";
     if (testMode !== undefined) return `input[data-test-mode="${testMode}"]`;
     if (replacePath !== undefined) return `input[data-replace-path="${replacePath}"]`;
@@ -362,7 +388,16 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
   root.addEventListener("input", event => {
     const field = event.target;
-    if (draft === null || field.type !== "text") return;
+    if (draft === null) return;
+
+    // A text box with one entry per line: the lines are what is stored.
+    if (field.tagName === "TEXTAREA") {
+      apply(parsePath(field.dataset.path), field.value.split("\n"));
+      refreshFeedback();
+      return;
+    }
+
+    if (field.type !== "text") return;
 
     if (field.dataset.testUrl !== undefined) {
       tester.url = field.value;
@@ -392,7 +427,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       touched.add("actions");
       changed();
       const index = draft.actions.length - 1;
-      redraw(field.value === "remove" ? `input[data-path="actions.${index}.parameter"]` : `input[data-path="actions.${index}.parameter.find"]`);
+      const first = { remove: "parameter", replace: "parameter.find", keep: "parameters" }[field.value];
+      redraw(`input[data-path="actions.${index}.${first}"], textarea[data-path="actions.${index}.${first}"]`);
     } else if (field.dataset.replacePath !== undefined) {
       const path = [...parsePath(field.dataset.replacePath), "replace"];
       draft = field.checked ? setIn(draft, path, "") : unsetIn(draft, path);
@@ -446,7 +482,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const reindex = key => key.replace(new RegExp(`^actions\\.${from}(?=\\.|$)`), `actions.${to}`);
 
     if (path !== undefined && path.startsWith(`actions.${from}.`)) {
-      return { selector: `input[data-path="${reindex(path)}"]` };
+      return { selector: `input[data-path="${reindex(path)}"], textarea[data-path="${reindex(path)}"]` };
     }
     if (replacePath !== undefined && replacePath.startsWith(`actions.${from}.`)) {
       return { selector: `input[data-replace-path="${reindex(replacePath)}"]` };

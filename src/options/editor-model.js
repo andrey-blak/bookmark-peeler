@@ -70,6 +70,8 @@ export function setScopeMode(scope, mode) {
 
 const NEW_ACTIONS = {
   remove: () => ({ type: "remove", parameter: "" }),
+  // The lines of the text box, as typed: blank lines and spaces are dropped when the rule is stored.
+  keep: () => ({ type: "keep", parameters: [] }),
   // Parameter: a filter only. Value: its replacement is ticked and empty.
   replace: () => ({ type: "replace", parameter: { find: "" }, value: { find: "", replace: "" }, ignoreCase: false }),
 };

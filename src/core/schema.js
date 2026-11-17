@@ -59,6 +59,15 @@ function normalizeAction(raw) {
     case "remove":
       return { type: "remove", parameter: isText(raw.parameter) ? raw.parameter : "" };
 
+    case "keep":
+      return {
+        type: "keep",
+        parameters: (Array.isArray(raw.parameters) ? raw.parameters : [])
+          .filter(isText)
+          .map(entry => entry.trim())
+          .filter(entry => entry !== ""),
+      };
+
     case "replace": {
       const action = { type: "replace" };
       const parameter = normalizePart(raw.parameter);
@@ -212,6 +221,16 @@ function validateAction(action, index) {
 
     case "replace":
       return validateReplace(action, path);
+
+    case "keep": {
+      const list = action.parameters;
+      const at = [...path, "parameters"];
+
+      if (!Array.isArray(list)) return [error(at, "Enter at least one parameter.")];
+      if (!list.every(isText)) return [error(at, "Parameters must be text.")];
+      if (!list.some(entry => entry.trim() !== "")) return [error(at, "Enter at least one parameter.")];
+      return [];
+    }
 
     default:
       return [error([...path, "type"], "Unknown action type.")];

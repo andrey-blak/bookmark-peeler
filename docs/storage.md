@@ -71,6 +71,19 @@ Every action has a `type`.
 | `type` | `"remove"` | yes | |
 | `parameter` | string | yes, not empty | Parameter name. A plain name matches exactly; `*` matches any characters. Case-sensitive, compared with the decoded name. |
 
+### `keep`
+
+An allowlist: removes every parameter that is not on the list.
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `type` | `"keep"` | yes | |
+| `parameters` | array of string | yes, with at least one name | Parameter names to keep. A plain name matches exactly; `*` matches any characters. Case-sensitive, compared with the decoded name. Spaces around a name are trimmed and blank entries are dropped. |
+
+- A part of the query without a name, as in a stray `&&`, is not on the list, so it is dropped.
+- Without any name the action is an error, so a rule is never applied as "remove everything" by mistake. To remove all parameters use `remove` with `*`.
+- Actions after a `keep` work on the parameters that are left.
+
 ### `replace`
 
 | Field | Type | Required | Default | Meaning |
@@ -104,7 +117,7 @@ At least one of `parameter` and `value` needs a non-empty `find`.
 
 | Severity | Cases |
 |---|---|
-| error | no or unknown scope `type`; missing or invalid `host`; `path` containing `?` or `#`; unknown action `type`; empty `parameter` in `remove`; `replace` with no non-empty `find`; invalid regular expression; non-text `find` or `replace` |
+| error | no or unknown scope `type`; missing or invalid `host`; `path` containing `?` or `#`; unknown action `type`; empty `parameter` in `remove`; no parameter names, or a name that is not text, in `keep`; `replace` with no non-empty `find`; invalid regular expression; non-text `find` or `replace` |
 | warning | no actions; `replace` that replaces nothing (no pattern has `replace`); `replace` set on a pattern without `find` |
 
 A rule with errors stays in storage so it can be fixed, but is not applied.
