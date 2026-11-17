@@ -211,14 +211,14 @@ describe("setEnabled", () => {
 describe("scopeLabel, ruleTitle and ruleSubtitle", () => {
   test("describes each scope", () => {
     assert.equal(scopeLabel({ type: "all" }), "All sites");
-    assert.equal(scopeLabel({ type: "host", host: "youtube.com" }), "youtube.com");
-    assert.equal(scopeLabel({ type: "host", host: "youtube.com", path: "/watch" }), "youtube.com/watch");
-    assert.equal(scopeLabel({ type: "host", host: "youtube.com", path: "watch" }), "youtube.com/watch");
-    assert.equal(scopeLabel({ type: "host", host: "youtube.com", path: "/playlist/*" }), "youtube.com/playlist/*");
+    assert.equal(scopeLabel({ type: "host", host: "example.com" }), "example.com");
+    assert.equal(scopeLabel({ type: "host", host: "example.com", path: "/video" }), "example.com/video");
+    assert.equal(scopeLabel({ type: "host", host: "example.com", path: "video" }), "example.com/video");
+    assert.equal(scopeLabel({ type: "host", host: "example.com", path: "/albums/*" }), "example.com/albums/*");
   });
 
   test("mentions when subdomains are off", () => {
-    assert.equal(scopeLabel({ type: "host", host: "youtube.com", subdomains: false }), "youtube.com (no subdomains)");
+    assert.equal(scopeLabel({ type: "host", host: "example.com", subdomains: false }), "example.com (no subdomains)");
   });
 
   test("an incomplete scope has no label", () => {
@@ -229,7 +229,7 @@ describe("scopeLabel, ruleTitle and ruleSubtitle", () => {
 
   test("the title is the name, else the scope, else a placeholder", () => {
     assert.equal(ruleTitle(rule("a", { name: "Tracking" })), "Tracking");
-    assert.equal(ruleTitle(rule("a", { scope: { type: "host", host: "a.com" } })), "a.com");
+    assert.equal(ruleTitle(rule("a", { scope: { type: "host", host: "a.example" } })), "a.example");
     assert.equal(ruleTitle(rule("a", { scope: { type: "host", host: "" } })), "Untitled rule");
   });
 
@@ -346,7 +346,7 @@ describe("stepSelection and selectionAfterRemove", () => {
 describe("ruleInitial", () => {
   test("is the first letter of the title, in capitals", () => {
     assert.equal(ruleInitial(rule("a", { name: "tracking" })), "T");
-    assert.equal(ruleInitial(rule("a", { name: "YouTube" })), "Y");
+    assert.equal(ruleInitial(rule("a", { name: "Example" })), "E");
   });
 
   test("without a name it comes from the domain, or all sites", () => {

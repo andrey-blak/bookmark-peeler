@@ -41,13 +41,13 @@ describe("newDraft", () => {
 });
 
 describe("setIn and unsetIn", () => {
-  const draft = () => ({ name: "A", scope: { host: "a.com" }, actions: [{ parameter: "x" }, { parameter: "y" }] });
+  const draft = () => ({ name: "A", scope: { host: "a.example" }, actions: [{ parameter: "x" }, { parameter: "y" }] });
 
   test("setIn sets a nested value without modifying the input", () => {
     const before = draft();
-    const after = setIn(before, ["scope", "host"], "b.com");
-    assert.equal(after.scope.host, "b.com");
-    assert.equal(before.scope.host, "a.com");
+    const after = setIn(before, ["scope", "host"], "b.example");
+    assert.equal(after.scope.host, "b.example");
+    assert.equal(before.scope.host, "a.example");
   });
 
   test("setIn reaches into arrays and keeps everything else", () => {
@@ -83,20 +83,20 @@ describe("setIn and unsetIn", () => {
 describe("scopeMode and setScopeMode", () => {
   test("tells all sites, domain and domain + path apart", () => {
     assert.equal(scopeMode({ type: "all" }), "all");
-    assert.equal(scopeMode({ type: "host", host: "a.com" }), "host");
-    assert.equal(scopeMode({ type: "host", host: "a.com", path: "/x" }), "path");
-    assert.equal(scopeMode({ type: "host", host: "a.com", path: "" }), "path");
+    assert.equal(scopeMode({ type: "host", host: "a.example" }), "host");
+    assert.equal(scopeMode({ type: "host", host: "a.example", path: "/x" }), "path");
+    assert.equal(scopeMode({ type: "host", host: "a.example", path: "" }), "path");
   });
 
   test("choosing Domain + path adds an empty path, choosing Domain removes it", () => {
-    const host = { type: "host", host: "a.com", subdomains: true };
+    const host = { type: "host", host: "a.example", subdomains: true };
     const path = setScopeMode(host, "path");
-    assert.deepEqual(path, { type: "host", host: "a.com", subdomains: true, path: "" });
+    assert.deepEqual(path, { type: "host", host: "a.example", subdomains: true, path: "" });
     assert.deepEqual(setScopeMode({ ...path, path: "/x" }, "host"), host);
   });
 
   test("going to All sites and back restores the domain and the path", () => {
-    const scope = { type: "host", host: "a.com", subdomains: false, path: "/x" };
+    const scope = { type: "host", host: "a.example", subdomains: false, path: "/x" };
     const all = setScopeMode(scope, "all");
     assert.equal(all.type, "all");
     assert.deepEqual(setScopeMode(all, "path"), scope);
@@ -113,9 +113,9 @@ describe("scopeMode and setScopeMode", () => {
   });
 
   test("does not modify its input", () => {
-    const scope = { type: "host", host: "a.com" };
+    const scope = { type: "host", host: "a.example" };
     setScopeMode(scope, "path");
-    assert.deepEqual(scope, { type: "host", host: "a.com" });
+    assert.deepEqual(scope, { type: "host", host: "a.example" });
   });
 });
 
@@ -220,7 +220,7 @@ describe("summaryText", () => {
 });
 
 describe("isDirty", () => {
-  const base = () => ({ id: "r", enabled: true, name: "A", scope: { type: "host", host: "a.com", subdomains: true }, actions: [{ type: "remove", parameter: "x" }] });
+  const base = () => ({ id: "r", enabled: true, name: "A", scope: { type: "host", host: "a.example", subdomains: true }, actions: [{ type: "remove", parameter: "x" }] });
 
   test("a copy is not dirty", () => {
     assert.equal(isDirty(base(), base()), false);
@@ -228,7 +228,7 @@ describe("isDirty", () => {
 
   test("any change in the name, scope or actions is dirty", () => {
     assert.equal(isDirty({ ...base(), name: "B" }, base()), true);
-    assert.equal(isDirty(setIn(base(), ["scope", "host"], "b.com"), base()), true);
+    assert.equal(isDirty(setIn(base(), ["scope", "host"], "b.example"), base()), true);
     assert.equal(isDirty(setIn(base(), ["actions", 0, "parameter"], "y"), base()), true);
     assert.equal(isDirty(addAction(base(), "remove"), base()), true);
   });
@@ -254,8 +254,8 @@ describe("duplicateDraft", () => {
   const rule = () => ({
     id: "r",
     enabled: false,
-    name: "YouTube",
-    scope: { type: "host", host: "youtube.com", subdomains: true, path: "/watch" },
+    name: "Example",
+    scope: { type: "host", host: "example.com", subdomains: true, path: "/video" },
     actions: [{ type: "remove", parameter: "pp" }],
   });
 
@@ -263,7 +263,7 @@ describe("duplicateDraft", () => {
     const copy = duplicateDraft(rule());
     assert.match(copy.id, UUID);
     assert.notEqual(copy.id, "r");
-    assert.equal(copy.name, "YouTube copy");
+    assert.equal(copy.name, "Example copy");
   });
 
   test("keeps the scope, the actions and the enabled state", () => {
@@ -301,11 +301,11 @@ describe("isSaveKey", () => {
   });
 });
 
-describe("building the GitHub visibility rule step by step", () => {
+describe("building the Example visibility rule step by step", () => {
   function build() {
     let draft = newDraft();
-    draft = setIn(draft, ["name"], "GitHub visibility");
-    draft = setIn(draft, ["scope", "host"], "github.com");
+    draft = setIn(draft, ["name"], "Example visibility");
+    draft = setIn(draft, ["scope", "host"], "example.com");
     draft = addAction(draft, "replace");
     draft = setIn(draft, ["actions", 0, "parameter", "find"], "^visibility$");
     draft = setIn(draft, ["actions", 0, "value", "find"], "^public$");
@@ -319,8 +319,8 @@ describe("building the GitHub visibility rule step by step", () => {
   test("and works on a URL", () => {
     const rule = normalizeRule(build());
     assert.equal(
-      cleanUrl("https://github.com/new?owner=me&visibility=public", [rule]),
-      "https://github.com/new?owner=me&visibility=private",
+      cleanUrl("https://example.com/new?owner=me&visibility=public", [rule]),
+      "https://example.com/new?owner=me&visibility=private",
     );
   });
 

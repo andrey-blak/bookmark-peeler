@@ -126,7 +126,7 @@ export function setEnabled(rules, index, enabled) {
   return rules.map((rule, i) => (i === index ? { ...rule, enabled } : rule));
 }
 
-/** Short text for where a rule applies: "All sites", "youtube.com/watch". Empty when the scope is incomplete. */
+/** Short text for where a rule applies: "All sites", "example.com/video". Empty when the scope is incomplete. */
 export function scopeLabel(scope) {
   if (scope?.type === "all") return "All sites";
 

@@ -16,8 +16,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const goodRule = () => ({
   id: "r1",
   enabled: true,
-  name: "GitHub visibility",
-  scope: { type: "host", host: "github.com", subdomains: true, path: "/new" },
+  name: "Example visibility",
+  scope: { type: "host", host: "example.com", subdomains: true, path: "/new" },
   actions: [
     { type: "remove", parameter: "utm_*" },
     {
@@ -52,7 +52,7 @@ describe("normalizeRule", () => {
   });
 
   test("fills in defaults", () => {
-    const rule = normalizeRule({ scope: { type: "host", host: "a.com" }, actions: [] });
+    const rule = normalizeRule({ scope: { type: "host", host: "a.example" }, actions: [] });
     assert.match(rule.id, UUID);
     assert.equal(rule.enabled, true);
     assert.equal(rule.scope.subdomains, true);
@@ -68,26 +68,26 @@ describe("normalizeRule", () => {
 
   test("an empty name is dropped, a real one is kept", () => {
     assert.equal("name" in normalizeRule({ name: "  " }), false);
-    assert.equal(normalizeRule({ name: "YouTube" }).name, "YouTube");
+    assert.equal(normalizeRule({ name: "Example" }).name, "Example");
     assert.equal("name" in normalizeRule({ name: 5 }), false);
   });
 
   test("an empty path is dropped, the host is trimmed", () => {
-    const { scope } = normalizeRule({ scope: { type: "host", host: " a.com ", path: "" } });
-    assert.equal(scope.host, "a.com");
+    const { scope } = normalizeRule({ scope: { type: "host", host: " a.example ", path: "" } });
+    assert.equal(scope.host, "a.example");
     assert.equal("path" in scope, false);
   });
 
   test("subdomains: false is kept, anything else means true", () => {
-    assert.equal(normalizeRule({ scope: { type: "host", host: "a.com", subdomains: false } }).scope.subdomains, false);
-    assert.equal(normalizeRule({ scope: { type: "host", host: "a.com", subdomains: "no" } }).scope.subdomains, true);
+    assert.equal(normalizeRule({ scope: { type: "host", host: "a.example", subdomains: false } }).scope.subdomains, false);
+    assert.equal(normalizeRule({ scope: { type: "host", host: "a.example", subdomains: "no" } }).scope.subdomains, true);
   });
 
   test("unknown fields are dropped everywhere", () => {
     const rule = normalizeRule({
       ...goodRule(),
       extra: 1,
-      scope: { type: "all", host: "ignored.com", extra: 1 },
+      scope: { type: "all", host: "ignored.example", extra: 1 },
       actions: [{ type: "remove", parameter: "a", extra: 1 }],
     });
     assert.equal("extra" in rule, false);
@@ -118,7 +118,7 @@ describe("normalizeRule", () => {
   });
 
   test("is idempotent", () => {
-    const once = normalizeRule({ scope: { type: "host", host: "a.com" }, actions: [{ type: "remove", parameter: "x" }] });
+    const once = normalizeRule({ scope: { type: "host", host: "a.example" }, actions: [{ type: "remove", parameter: "x" }] });
     assert.deepEqual(normalizeRule(once), once);
   });
 });
@@ -214,21 +214,21 @@ describe("validateRule: scope", () => {
   });
 
   test("a domain must be a plain host name", () => {
-    for (const host of ["youtube.com/watch", "youtube.com:8080", "you tube.com", "a@b.com", "a.com?x=1", "a.com#x"]) {
+    for (const host of ["example.com/video", "example.com:8080", "exam ple.com", "a@b.example", "a.example?x=1", "a.example#x"]) {
       const rule = { ...goodRule(), scope: { type: "host", host } };
       assert.equal(find(validateRule(rule), "scope.host")?.severity, "error", host);
     }
   });
 
   test("good domains pass, including IP addresses, localhost and non-ASCII names", () => {
-    for (const host of ["youtube.com", "WWW.Example.org", "127.0.0.1", "localhost", "пример.рф"]) {
+    for (const host of ["example.com", "WWW.Example.org", "127.0.0.1", "localhost", "пример.example"]) {
       const rule = { ...goodRule(), scope: { type: "host", host } };
       assert.equal(find(validateRule(rule), "scope.host"), undefined, host);
     }
   });
 
   test("wildcards in the domain are rejected, with a message that points to the Subdomains option", () => {
-    for (const host of ["*.youtube.com", "youtube.*", "*"]) {
+    for (const host of ["*.example.com", "example.*", "*"]) {
       const rule = { ...goodRule(), scope: { type: "host", host } };
       const issue = find(validateRule(rule), "scope.host");
       assert.equal(issue?.severity, "error", host);
@@ -239,14 +239,14 @@ describe("validateRule: scope", () => {
 
   test("a path cannot contain ? or #", () => {
     for (const path of ["/a?b=1", "/a#b"]) {
-      const rule = { ...goodRule(), scope: { type: "host", host: "a.com", path } };
+      const rule = { ...goodRule(), scope: { type: "host", host: "a.example", path } };
       assert.equal(find(validateRule(rule), "scope.path").severity, "error", path);
     }
   });
 
   test("paths with wildcards and without a leading slash are fine", () => {
-    for (const path of ["/a/*", "/a/**", "watch", "/"]) {
-      const rule = { ...goodRule(), scope: { type: "host", host: "a.com", path } };
+    for (const path of ["/a/*", "/a/**", "video", "/"]) {
+      const rule = { ...goodRule(), scope: { type: "host", host: "a.example", path } };
       assert.equal(find(validateRule(rule), "scope.path"), undefined, path);
     }
   });

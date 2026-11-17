@@ -4,7 +4,7 @@ import { splitUrl, joinUrl, parseQuery, serializeQuery } from "../../src/core/qu
 
 // Awkward URLs: every one of them must survive parse -> serialise unchanged.
 const URLS = [
-  "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D",
+  "https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D",
   "https://example.com",
   "https://example.com/",
   "https://example.com/path",
@@ -33,48 +33,48 @@ const URLS = [
 
 describe("splitUrl / joinUrl", () => {
   test("splits base, query and fragment", () => {
-    assert.deepEqual(splitUrl("https://e.com/p?a=1&b=2#top"), {
-      base: "https://e.com/p",
+    assert.deepEqual(splitUrl("https://example.com/p?a=1&b=2#top"), {
+      base: "https://example.com/p",
       query: "a=1&b=2",
       fragment: "top",
     });
   });
 
   test("absent query and fragment are null", () => {
-    assert.deepEqual(splitUrl("https://e.com/p"), {
-      base: "https://e.com/p",
+    assert.deepEqual(splitUrl("https://example.com/p"), {
+      base: "https://example.com/p",
       query: null,
       fragment: null,
     });
   });
 
   test("empty query and fragment are empty strings, not null", () => {
-    assert.deepEqual(splitUrl("https://e.com/?#"), {
-      base: "https://e.com/",
+    assert.deepEqual(splitUrl("https://example.com/?#"), {
+      base: "https://example.com/",
       query: "",
       fragment: "",
     });
   });
 
   test("a ? inside the fragment does not start a query", () => {
-    assert.deepEqual(splitUrl("https://e.com/#a?b=1"), {
-      base: "https://e.com/",
+    assert.deepEqual(splitUrl("https://example.com/#a?b=1"), {
+      base: "https://example.com/",
       query: null,
       fragment: "a?b=1",
     });
   });
 
   test("only the first # starts the fragment", () => {
-    assert.deepEqual(splitUrl("https://e.com/?a=1#x#y"), {
-      base: "https://e.com/",
+    assert.deepEqual(splitUrl("https://example.com/?a=1#x#y"), {
+      base: "https://example.com/",
       query: "a=1",
       fragment: "x#y",
     });
   });
 
   test("a second ? stays inside the query", () => {
-    assert.deepEqual(splitUrl("https://e.com/?a=1?b=2"), {
-      base: "https://e.com/",
+    assert.deepEqual(splitUrl("https://example.com/?a=1?b=2"), {
+      base: "https://example.com/",
       query: "a=1?b=2",
       fragment: null,
     });
@@ -87,9 +87,9 @@ describe("splitUrl / joinUrl", () => {
   }
 
   test("joinUrl adds ? and # only when the part is not null", () => {
-    assert.equal(joinUrl({ base: "https://e.com/", query: null, fragment: null }), "https://e.com/");
-    assert.equal(joinUrl({ base: "https://e.com/", query: "", fragment: null }), "https://e.com/?");
-    assert.equal(joinUrl({ base: "https://e.com/", query: null, fragment: "" }), "https://e.com/#");
+    assert.equal(joinUrl({ base: "https://example.com/", query: null, fragment: null }), "https://example.com/");
+    assert.equal(joinUrl({ base: "https://example.com/", query: "", fragment: null }), "https://example.com/?");
+    assert.equal(joinUrl({ base: "https://example.com/", query: null, fragment: "" }), "https://example.com/#");
   });
 });
 
@@ -103,17 +103,17 @@ describe("parseQuery", () => {
   });
 
   test("splits on & and exposes decoded name and value", () => {
-    const parameters = parseQuery("v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D");
+    const parameters = parseQuery("v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D");
     assert.deepEqual(
       parameters.map(({ name, value }) => [name, value]),
-      [["v", "KAq7MwkoFR8"], ["pp", "ugUEEgJydQ=="]],
+      [["v", "Hn4xT9sBq2L"], ["pp", "qvRtLd8aWk=="]],
     );
   });
 
   test("keeps the raw text of name and value", () => {
-    const [p] = parseQuery("pp=ugUEEgJydQ%3D%3D");
+    const [p] = parseQuery("pp=qvRtLd8aWk%3D%3D");
     assert.equal(p.rawName, "pp");
-    assert.equal(p.rawValue, "ugUEEgJydQ%3D%3D");
+    assert.equal(p.rawValue, "qvRtLd8aWk%3D%3D");
   });
 
   test("decodes percent-escapes and + as space", () => {

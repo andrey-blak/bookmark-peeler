@@ -2,12 +2,12 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { handleBookmarkCreated } from "../../src/background/handler.js";
 
-const YOUTUBE = "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D";
-const CLEAN = "https://www.youtube.com/watch?v=KAq7MwkoFR8";
+const VIDEO_URL = "https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D";
+const CLEAN = "https://www.example.com/video?v=Hn4xT9sBq2L";
 
 const removePp = {
   id: "yt",
-  scope: { type: "host", host: "youtube.com" },
+  scope: { type: "host", host: "example.com" },
   actions: [{ type: "remove", parameter: "pp" }],
 };
 
@@ -34,7 +34,7 @@ function setup(stored) {
 describe("handleBookmarkCreated", () => {
   test("replaces the URL of a new bookmark with the cleaned one", async () => {
     const { deps, calls } = setup(config([removePp]));
-    await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
     assert.deepEqual(calls.updates, [["b1", { url: CLEAN }]]);
   });
 
@@ -55,34 +55,34 @@ describe("handleBookmarkCreated", () => {
   test("empty storage means no rules", async () => {
     for (const stored of [undefined, {}]) {
       const { deps, calls } = setup(stored);
-      await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+      await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
       assert.deepEqual(calls.updates, []);
     }
   });
 
   test("a disabled rule is not applied", async () => {
     const { deps, calls } = setup(config([{ ...removePp, enabled: false }]));
-    await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
     assert.deepEqual(calls.updates, []);
   });
 
   test("a rule with errors is skipped while the valid rules still apply", async () => {
     const broken = { id: "bad", scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "v" }] };
     const { deps, calls } = setup(config([broken, removePp]));
-    await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
     assert.deepEqual(calls.updates, [["b1", { url: CLEAN }]]);
   });
 
   test("a rule whose only problem is a warning is applied", async () => {
     const warned = { id: "w", scope: { type: "all" }, actions: [] };
     const { deps, calls } = setup(config([warned, removePp]));
-    await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
     assert.deepEqual(calls.updates, [["b1", { url: CLEAN }]]);
   });
 
   test("storage with an unsupported schema version is left alone", async () => {
     const { deps, calls } = setup({ ...config([removePp]), schemaVersion: 2 });
-    await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
     assert.deepEqual(calls.updates, []);
   });
 
@@ -96,9 +96,9 @@ describe("handleBookmarkCreated", () => {
 
   test("rules are read from storage on every bookmark, so edited rules apply at once", async () => {
     const { deps, calls, state } = setup(config([]));
-    await handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
     state.stored = config([removePp]);
-    await handleBookmarkCreated({ id: "b2", url: YOUTUBE }, deps);
+    await handleBookmarkCreated({ id: "b2", url: VIDEO_URL }, deps);
     assert.deepEqual(calls.updates, [["b2", { url: CLEAN }]]);
     assert.equal(calls.reads, 2);
   });
@@ -108,12 +108,12 @@ describe("handleBookmarkCreated", () => {
       loadStored: async () => { throw new Error("storage down"); },
       updateBookmark: async () => {},
     };
-    await assert.rejects(handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps), /storage down/);
+    await assert.rejects(handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps), /storage down/);
   });
 
   test("an update error is passed on to the caller", async () => {
     const { deps } = setup(config([removePp]));
     deps.updateBookmark = async () => { throw new Error("update failed"); };
-    await assert.rejects(handleBookmarkCreated({ id: "b1", url: YOUTUBE }, deps), /update failed/);
+    await assert.rejects(handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps), /update failed/);
   });
 });

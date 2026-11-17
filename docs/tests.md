@@ -36,18 +36,18 @@ To try this without the editor, put a rule into storage from the add-on's own co
      schemaVersion: 1,
      settings: { cleanOnEdit: false },
      rules: [{
-       scope: { type: "host", host: "youtube.com" },
+       scope: { type: "host", host: "example.com" },
        actions: [{ type: "remove", parameter: "pp" }]
      }]
    })
    ```
 
-3. Bookmark `https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D` in each of these ways:
+3. Bookmark `https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D` in each of these ways:
    - Ctrl+D, and the star button in the address bar.
    - Dragging the page icon from the address bar onto the bookmarks toolbar.
    - Dragging a link to that URL onto the bookmarks toolbar, and onto a folder in the Library window.
    - "Bookmark All Tabs".
-4. Open the Library (Ctrl+Shift+O), select each bookmark and check its Location: `pp` must be gone and `v=KAq7MwkoFR8` must stay.
+4. Open the Library (Ctrl+Shift+O), select each bookmark and check its Location: `pp` must be gone and `v=Hn4xT9sBq2L` must stay.
 5. Errors, if any, show in the add-on's Console as `Bookmark Peeler: ...`.
 
 ### Main page: the rule list
@@ -60,7 +60,7 @@ await browser.storage.local.set({
   settings: { cleanOnEdit: false },
   rules: [
     { name: "Tracking parameters", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] },
-    { name: "YouTube", scope: { type: "host", host: "youtube.com", path: "/watch" }, actions: [{ type: "remove", parameter: "pp" }] },
+    { name: "Example", scope: { type: "host", host: "example.com", path: "/video" }, actions: [{ type: "remove", parameter: "pp" }] },
     { name: "Has an error", scope: { type: "host", host: "" }, actions: [{ type: "remove", parameter: "x" }] },
     { name: "Switched off", enabled: false, scope: { type: "host", host: "example.org", subdomains: false }, actions: [] },
     { scope: { type: "host", host: "news.example.com" }, actions: [{ type: "remove", parameter: "ref" }] }
@@ -90,7 +90,7 @@ The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down m
 Start with the rules from the previous section, or an empty list.
 
 1. Add rule: the editor opens with an empty Name, Scope "Domain" and an empty Domain showing the `example.com` placeholder. The list gets an italic "New rule" row. No error or warning is visible yet.
-2. Type `github.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter" and "Replace in parameter or value", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
+2. Type `example.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter" and "Replace in parameter or value", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
 3. Fill in Parameter `^visibility$`, leave "Replace with" unticked there, Value `^public$`, and in the Value replacement `private`. Then type `(` in the Value pattern: a red message about the regular expression appears under it, the field is outlined, and the line next to Save says "1 error. The rule isn't applied until the error is fixed." Fix the pattern.
 4. Untick "Replace with" on the Value line: a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
 5. Press Save (and, in another rule, Ctrl+S while typing in a field: Firefox's "Save page" must not open). The row gets the name, or the domain when the name is empty, the • goes, and "Saved." is shown. Reload the page: the rule is there and opens with the same values.
@@ -104,22 +104,22 @@ Start with the rules from the previous section, or an empty list.
 13. Switch a rule off in the list while it is open in the editor, then Save an edit: the rule stays off.
 14. Open the page in two tabs: save a change in one; the other tab, if it has no unsaved changes, shows it.
 15. Messages on opening a stored rule: a rule without actions shows "This rule has no actions, so it does nothing." under "Actions" as soon as it is opened. Save a new rule without actions, select another rule and come back: the warning is still there. "Has an error" shows "Enter a domain." under Domain at once. After changing a field of a stored rule and pressing Revert, the messages are still shown. A new rule shows no message until you type in it.
-16. Domain and path fields: the Path placeholder is `watch` and its hint shows `playlist/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. The Subdomains option includes subdomains." A path without the leading slash (`new`) still matches `/new`.
-17. End to end: create "Remove pp" for `youtube.com`, action Remove parameter `pp`, and Save. Bookmark a YouTube URL with `&pp=...`: the saved bookmark has no `pp`.
+16. Domain and path fields: the Path placeholder is `video` and its hint shows `albums/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. The Subdomains option includes subdomains." A path without the leading slash (`new`) still matches `/new`.
+17. End to end: create "Remove pp" for `example.com`, action Remove parameter `pp`, and Save. Bookmark an example.com URL with `&pp=...`: the saved bookmark has no `pp`.
 
 ### Main page: "Try it"
 
-Have a few rules, for example "Tracking" (all sites, remove `utm_*`) and the GitHub visibility rule from the editor test, and open one of them.
+Have a few rules, for example "Tracking" (all sites, remove `utm_*`) and the Example visibility rule from the editor test, and open one of them.
 If the page looks unstyled or shows an old version after a change, reload the add-on in `about:debugging` and reload the page with Ctrl+Shift+R, so Firefox does not use a cached stylesheet.
 
 1. "Try it" is at the bottom of the editor, above Save, with clear space above it. Before anything is typed it says "Paste a URL to see what the rule does."
-2. Paste `https://github.com/new?owner=me&visibility=public&utm_source=x`. With "All rules" selected (the default) the result is `https://github.com/new?owner=me&visibility=private`, with `visibility=private` in bold green. There is space between the URL field and the result, and the first character of the result is directly under the first character typed in the URL field.
-3. "What changed (2)" is collapsed, with space above it. Open it: `✓ Changed: visibility: public → private  by **GitHub visibility**` with a green ✓, and `✕ Removed: utm_source=x  by **Tracking**` with a red ✕, each part separated by a space, the rule name in bold, and no coloured background. Reload the page: the list is collapsed again.
+2. Paste `https://example.com/new?owner=me&visibility=public&utm_source=x`. With "All rules" selected (the default) the result is `https://example.com/new?owner=me&visibility=private`, with `visibility=private` in bold green. There is space between the URL field and the result, and the first character of the result is directly under the first character typed in the URL field.
+3. "What changed (2)" is collapsed, with space above it. Open it: `✓ Changed: visibility: public → private  by **Example visibility**` with a green ✓, and `✕ Removed: utm_source=x  by **Tracking**` with a red ✕, each part separated by a space, the rule name in bold, and no coloured background. Reload the page: the list is collapsed again.
 4. Choose "Current rule": the result keeps `utm_source=x`, only the open rule's change is listed, and the lines no longer name a rule.
 5. The result follows what you type, in the URL field and in the rule's fields, without saving. Change the replacement to `internal`: the result changes at once, and Revert brings the old result back.
 6. Reload the page, or close and reopen it: the URL and the mode are still there, and no Save was pressed.
-7. Notes: test `https://gitlab.com/new?visibility=public` with the GitHub rule: "This rule doesn't apply to this URL: the domain doesn't match." Give the rule a path `/settings` and test the GitHub URL: "...the path doesn't match." Put an invalid regex in a pattern: "This rule has errors, so it isn't applied." Switch the rule off in the list and use "All rules": "This rule is switched off in the list, so it isn't applied."
-8. A URL that is not http or https (`github.com/new`, `ftp://...`) shows "Enter a full URL starting with http:// or https://." A URL with no matching parameters shows the URL and "No changes."
+7. Notes: test `https://example.net/new?visibility=public` with the Example rule: "This rule doesn't apply to this URL: the domain doesn't match." Give the rule a path `/settings` and test the Example URL: "...the path doesn't match." Put an invalid regex in a pattern: "This rule has errors, so it isn't applied." Switch the rule off in the list and use "All rules": "This rule is switched off in the list, so it isn't applied."
+8. A URL that is not http or https (`example.com/new`, `ftp://...`) shows "Enter a full URL starting with http:// or https://." A URL with no matching parameters shows the URL and "No changes."
 
 ### Main page: the collapsible rule list
 
@@ -129,7 +129,7 @@ If the page looks unstyled or shows an old version after a change, reload the ad
 
 ### Main page: Import, Export and Presets
 
-Have two or three rules, for example "Tracking parameters" and the GitHub visibility rule, and one rule with an error.
+Have two or three rules, for example "Tracking parameters" and the Example visibility rule, and one rule with an error.
 
 1. The header has Presets, Import… and Export buttons on the right, and the rule list has no import or export buttons.
 2. Export: a file `bookmark-peeler-rules.json` is downloaded. Open it: it holds `schemaVersion`, `settings` and all the rules, indented.
@@ -143,9 +143,9 @@ Have two or three rules, for example "Tracking parameters" and the GitHub visibi
 
 ### Clean when edited
 
-1. In the add-on's console, switch the setting on and add the YouTube rule from "Background wiring":
-   `await browser.storage.local.set({ schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [{ scope: { type: "host", host: "youtube.com" }, actions: [{ type: "remove", parameter: "pp" }] }] })`
-2. Make a bookmark of any other page. Open its Properties (Library, or right-click, Edit Bookmark…), and set its Location to `https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D`. After saving, the Location shows no `pp`.
+1. In the add-on's console, switch the setting on and add the Example rule from "Background wiring":
+   `await browser.storage.local.set({ schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [{ scope: { type: "host", host: "example.com" }, actions: [{ type: "remove", parameter: "pp" }] }] })`
+2. Make a bookmark of any other page. Open its Properties (Library, or right-click, Edit Bookmark…), and set its Location to `https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D`. After saving, the Location shows no `pp`.
 3. Change only the title of a bookmark that has such an URL: the URL is not touched (the rule is applied to edited URLs only).
 4. Switch the setting off (`cleanOnEdit: false`) and repeat step 2: the URL keeps its `pp`.
 5. No loop: switch the setting on, make a rule that changes its own output (all sites, Replace, Value pattern `$`, replacement `x`), and edit a bookmark's URL to `https://example.com/?a=1`. The URL ends as `https://example.com/?a=1x`, once, not `1xxxx…`, and the Library does not flicker.

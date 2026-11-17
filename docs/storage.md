@@ -35,8 +35,8 @@ Rules run in list order and every matching rule applies; each sees the result of
 | Field | Type | Required | Default | Meaning |
 |---|---|---|---|---|
 | `type` | `"all"` or `"host"` | yes | none | `all`: every site. `host`: one domain, optionally one path. |
-| `host` | string | when `type` is `host` | none | Plain domain name such as `youtube.com`: no path, port, `@`, `*` or spaces. Case-insensitive; non-ASCII names are matched in their punycode form. |
-| `subdomains` | boolean | no | `true` | Also match subdomains, so `youtube.com` matches `www.youtube.com`. Only `false` turns it off. |
+| `host` | string | when `type` is `host` | none | Plain domain name such as `example.com`: no path, port, `@`, `*` or spaces. Case-insensitive; non-ASCII names are matched in their punycode form. |
+| `subdomains` | boolean | no | `true` | Also match subdomains, so `example.com` matches `www.example.com`. Only `false` turns it off. |
 | `path` | string | no | none (any path) | Path or path pattern, see below. Cannot contain `?` or `#`. |
 
 `host` and `subdomains` and `path` are used only when `type` is `host`.
@@ -111,8 +111,8 @@ A rule with only warnings is applied.
     {
       "id": "0b9d6c0e-6a41-4c1e-8d52-3d3f4e0a7b11",
       "enabled": true,
-      "name": "GitHub visibility",
-      "scope": { "type": "host", "host": "github.com", "subdomains": true, "path": "/new" },
+      "name": "Example visibility",
+      "scope": { "type": "host", "host": "example.com", "subdomains": true, "path": "/new" },
       "actions": [
         { "type": "remove", "parameter": "utm_*" },
         {

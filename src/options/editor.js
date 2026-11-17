@@ -89,12 +89,12 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
       row.append(checkbox("Subdomains", draft.scope.subdomains !== false, { path: "scope.subdomains" }));
     }
     if (mode === "path") {
-      row.append(textField("Path", ["scope", "path"], "watch"));
+      row.append(textField("Path", ["scope", "path"], "video"));
     }
 
     const section = el("section", {}, el("h3", {}, "Applies to"), row, slot("scope.type"), slot("scope.host"), slot("scope.path"));
     if (mode === "path") {
-      section.append(el("p", { className: "hint" }, "Use * for one level and ** for any depth, for example playlist/* or a/**."));
+      section.append(el("p", { className: "hint" }, "Use * for one level and ** for any depth, for example albums/* or a/**."));
     }
     return section;
   }
@@ -162,7 +162,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
     const url = el("input", {
       type: "text",
       value: tester.url,
-      placeholder: "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=…",
+      placeholder: "https://www.example.com/video?v=Hn4xT9sBq2L&pp=…",
       spellcheck: false,
       autocomplete: "off",
       className: "mono",
@@ -240,7 +240,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, getRules }) 
     }
 
     const duplicate = el("button", { type: "button", textContent: "Duplicate", dataset: { duplicate: "" } });
-    const header = el("div", { className: "row" }, textField("Name (optional)", ["name"], "GitHub visibility"), duplicate);
+    const header = el("div", { className: "row" }, textField("Name (optional)", ["name"], "Example visibility"), duplicate);
 
     const footer = el("div", { className: "footer" },
       el("button", { type: "button", className: "primary", textContent: "Save", dataset: { save: "" } }),

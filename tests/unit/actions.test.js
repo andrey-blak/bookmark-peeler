@@ -112,14 +112,14 @@ describe("applyAction: remove", () => {
     assert.equal(serializeQuery(parameters), "a=1&pp=2");
   });
 
-  test("the example from the task: pp removed from a YouTube URL", () => {
+  test("the example from the task: pp removed from a Example URL", () => {
     const { base, query, fragment } = splitUrl(
-      "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D",
+      "https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D",
     );
     const cleaned = serializeQuery(applyAction({ type: "remove", parameter: "pp" }, parseQuery(query)));
     assert.equal(
       joinUrl({ base, query: cleaned, fragment }),
-      "https://www.youtube.com/watch?v=KAq7MwkoFR8",
+      "https://www.example.com/video?v=Hn4xT9sBq2L",
     );
   });
 });

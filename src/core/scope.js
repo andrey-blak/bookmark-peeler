@@ -3,8 +3,8 @@
 // scope = { type: "all" }
 //       | { type: "host", host, subdomains?, path? }
 //
-// host: "youtube.com".
-//   With subdomains (default true) www.youtube.com matches too.
+// host: "example.com".
+//   With subdomains (default true) www.example.com matches too.
 // path: optional.
 //   A path without wildcards matches exactly.
 //   In a pattern, * matches anything except /, and ** matches anything including /.
@@ -41,7 +41,7 @@ function decodePath(path) {
   }
 }
 
-// "/watch/" -> "/watch", "watch" -> "/watch", "/" -> ""
+// "/video/" -> "/video", "video" -> "/video", "/" -> ""
 function normalizePath(path) {
   const withSlash = path.startsWith("/") ? path : "/" + path;
   return withSlash.replace(/\/+$/, "");

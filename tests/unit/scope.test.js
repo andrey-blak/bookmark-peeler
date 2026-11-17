@@ -4,40 +4,40 @@ import { hostMatches, pathMatches, matchesScope, scopeMismatch } from "../../src
 
 describe("hostMatches", () => {
   test("exact host", () => {
-    assert.equal(hostMatches("youtube.com", true, "youtube.com"), true);
+    assert.equal(hostMatches("example.com", true, "example.com"), true);
   });
 
   test("case-insensitive", () => {
-    assert.equal(hostMatches("YouTube.com", true, "youtube.com"), true);
-    assert.equal(hostMatches("youtube.com", true, "WWW.YOUTUBE.COM"), true);
+    assert.equal(hostMatches("Example.com", true, "example.com"), true);
+    assert.equal(hostMatches("example.com", true, "WWW.EXAMPLE.COM"), true);
   });
 
   test("subdomains match when enabled", () => {
-    assert.equal(hostMatches("youtube.com", true, "www.youtube.com"), true);
-    assert.equal(hostMatches("youtube.com", true, "a.b.youtube.com"), true);
+    assert.equal(hostMatches("example.com", true, "www.example.com"), true);
+    assert.equal(hostMatches("example.com", true, "a.b.example.com"), true);
   });
 
   test("subdomains are on by default", () => {
-    assert.equal(hostMatches("youtube.com", undefined, "www.youtube.com"), true);
+    assert.equal(hostMatches("example.com", undefined, "www.example.com"), true);
   });
 
   test("subdomains do not match when disabled", () => {
-    assert.equal(hostMatches("youtube.com", false, "www.youtube.com"), false);
-    assert.equal(hostMatches("youtube.com", false, "youtube.com"), true);
+    assert.equal(hostMatches("example.com", false, "www.example.com"), false);
+    assert.equal(hostMatches("example.com", false, "example.com"), true);
   });
 
   test("a longer name that merely ends with the host is not a match", () => {
-    assert.equal(hostMatches("youtube.com", true, "notyoutube.com"), false);
-    assert.equal(hostMatches("youtube.com", true, "youtube.com.evil.org"), false);
+    assert.equal(hostMatches("example.com", true, "notexample.com"), false);
+    assert.equal(hostMatches("example.com", true, "example.com.evil.example"), false);
   });
 
   test("a host rule with a subdomain does not match the parent", () => {
-    assert.equal(hostMatches("www.youtube.com", true, "youtube.com"), false);
-    assert.equal(hostMatches("www.youtube.com", true, "m.www.youtube.com"), true);
+    assert.equal(hostMatches("www.example.com", true, "example.com"), false);
+    assert.equal(hostMatches("www.example.com", true, "m.www.example.com"), true);
   });
 
   test("internationalised host names match their punycode form", () => {
-    assert.equal(hostMatches("пример.рф", true, "xn--e1afmkfd.xn--p1ai"), true);
+    assert.equal(hostMatches("пример.example", true, "xn--e1afmkfd.example"), true);
   });
 
   test("IP addresses and localhost match exactly", () => {
@@ -46,17 +46,17 @@ describe("hostMatches", () => {
   });
 
   test("wildcards are not supported: such a host matches nothing", () => {
-    assert.equal(hostMatches("*.youtube.com", true, "www.youtube.com"), false);
-    assert.equal(hostMatches("youtube.*", true, "youtube.com"), false);
-    assert.equal(hostMatches("*", true, "youtube.com"), false);
+    assert.equal(hostMatches("*.example.com", true, "www.example.com"), false);
+    assert.equal(hostMatches("example.*", true, "example.com"), false);
+    assert.equal(hostMatches("*", true, "example.com"), false);
   });
 
   test("empty or invalid hosts never match", () => {
-    assert.equal(hostMatches("", true, "youtube.com"), false);
-    assert.equal(hostMatches(undefined, true, "youtube.com"), false);
-    assert.equal(hostMatches("youtube.com/watch", true, "youtube.com"), false);
-    assert.equal(hostMatches("youtube.com:8080", true, "youtube.com"), false);
-    assert.equal(hostMatches("you tube.com", true, "youtube.com"), false);
+    assert.equal(hostMatches("", true, "example.com"), false);
+    assert.equal(hostMatches(undefined, true, "example.com"), false);
+    assert.equal(hostMatches("example.com/video", true, "example.com"), false);
+    assert.equal(hostMatches("example.com:8080", true, "example.com"), false);
+    assert.equal(hostMatches("exam ple.com", true, "example.com"), false);
   });
 });
 
@@ -68,32 +68,32 @@ describe("pathMatches", () => {
   });
 
   test("a plain path matches exactly", () => {
-    assert.equal(pathMatches("/watch", "/watch"), true);
-    assert.equal(pathMatches("/watch", "/watch/x"), false);
-    assert.equal(pathMatches("/watch", "/watching"), false);
-    assert.equal(pathMatches("/watch", "/"), false);
+    assert.equal(pathMatches("/video", "/video"), true);
+    assert.equal(pathMatches("/video", "/video/x"), false);
+    assert.equal(pathMatches("/video", "/videoing"), false);
+    assert.equal(pathMatches("/video", "/"), false);
   });
 
   test("a trailing slash is ignored on both sides", () => {
-    assert.equal(pathMatches("/watch", "/watch/"), true);
-    assert.equal(pathMatches("/watch/", "/watch"), true);
-    assert.equal(pathMatches("/watch/", "/watch/"), true);
+    assert.equal(pathMatches("/video", "/video/"), true);
+    assert.equal(pathMatches("/video/", "/video"), true);
+    assert.equal(pathMatches("/video/", "/video/"), true);
   });
 
   test("the leading slash of the pattern is optional", () => {
-    assert.equal(pathMatches("watch", "/watch"), true);
+    assert.equal(pathMatches("video", "/video"), true);
   });
 
   test("/ matches only the root", () => {
     assert.equal(pathMatches("/", "/"), true);
-    assert.equal(pathMatches("/", "/watch"), false);
+    assert.equal(pathMatches("/", "/video"), false);
   });
 
   test("* matches anything except /", () => {
-    assert.equal(pathMatches("/playlist/*", "/playlist/abc"), true);
-    assert.equal(pathMatches("/playlist/*", "/playlist/abc/def"), false);
-    assert.equal(pathMatches("/playlist/*", "/playlist"), false);
-    assert.equal(pathMatches("/playlist/*", "/playlist/"), false);
+    assert.equal(pathMatches("/albums/*", "/albums/abc"), true);
+    assert.equal(pathMatches("/albums/*", "/albums/abc/def"), false);
+    assert.equal(pathMatches("/albums/*", "/albums"), false);
+    assert.equal(pathMatches("/albums/*", "/albums/"), false);
   });
 
   test("* works inside a segment and in the middle", () => {
@@ -130,7 +130,7 @@ describe("pathMatches", () => {
   });
 
   test("matching is case-sensitive", () => {
-    assert.equal(pathMatches("/Watch", "/watch"), false);
+    assert.equal(pathMatches("/Video", "/video"), false);
   });
 
   test("percent-encoded paths are decoded before matching", () => {
@@ -144,10 +144,10 @@ describe("pathMatches", () => {
 });
 
 describe("matchesScope", () => {
-  const youtube = "https://www.youtube.com/watch?v=KAq7MwkoFR8&pp=ugUEEgJydQ%3D%3D";
+  const videoUrl = "https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk%3D%3D";
 
   test("all matches any valid URL", () => {
-    assert.equal(matchesScope({ type: "all" }, youtube), true);
+    assert.equal(matchesScope({ type: "all" }, videoUrl), true);
     assert.equal(matchesScope({ type: "all" }, "http://localhost:3000/x"), true);
   });
 
@@ -156,26 +156,26 @@ describe("matchesScope", () => {
   });
 
   test("host scope matches the host, with subdomains by default", () => {
-    assert.equal(matchesScope({ type: "host", host: "youtube.com" }, youtube), true);
-    assert.equal(matchesScope({ type: "host", host: "vimeo.com" }, youtube), false);
+    assert.equal(matchesScope({ type: "host", host: "example.com" }, videoUrl), true);
+    assert.equal(matchesScope({ type: "host", host: "example.net" }, videoUrl), false);
   });
 
   test("host scope can exclude subdomains", () => {
-    const scope = { type: "host", host: "youtube.com", subdomains: false };
-    assert.equal(matchesScope(scope, youtube), false);
-    assert.equal(matchesScope(scope, "https://youtube.com/watch?v=1"), true);
+    const scope = { type: "host", host: "example.com", subdomains: false };
+    assert.equal(matchesScope(scope, videoUrl), false);
+    assert.equal(matchesScope(scope, "https://example.com/video?v=1"), true);
   });
 
   test("host + path", () => {
-    const scope = { type: "host", host: "youtube.com", path: "/watch" };
-    assert.equal(matchesScope(scope, youtube), true);
-    assert.equal(matchesScope(scope, "https://www.youtube.com/playlist?list=1"), false);
+    const scope = { type: "host", host: "example.com", path: "/video" };
+    assert.equal(matchesScope(scope, videoUrl), true);
+    assert.equal(matchesScope(scope, "https://www.example.com/albums?list=1"), false);
   });
 
   test("host + path pattern", () => {
-    const scope = { type: "host", host: "youtube.com", path: "/playlist/*" };
-    assert.equal(matchesScope(scope, "https://www.youtube.com/playlist/abc?x=1"), true);
-    assert.equal(matchesScope(scope, "https://www.youtube.com/playlist/abc/def"), false);
+    const scope = { type: "host", host: "example.com", path: "/albums/*" };
+    assert.equal(matchesScope(scope, "https://www.example.com/albums/abc?x=1"), true);
+    assert.equal(matchesScope(scope, "https://www.example.com/albums/abc/def"), false);
   });
 
   test("port, query and fragment are ignored", () => {
@@ -191,36 +191,36 @@ describe("matchesScope", () => {
   });
 
   test("unknown scope types and missing scopes never match", () => {
-    assert.equal(matchesScope({ type: "regex", host: "youtube.com" }, youtube), false);
-    assert.equal(matchesScope({}, youtube), false);
-    assert.equal(matchesScope(undefined, youtube), false);
+    assert.equal(matchesScope({ type: "regex", host: "example.com" }, videoUrl), false);
+    assert.equal(matchesScope({}, videoUrl), false);
+    assert.equal(matchesScope(undefined, videoUrl), false);
   });
 
   test("a host scope without a host never matches", () => {
-    assert.equal(matchesScope({ type: "host" }, youtube), false);
+    assert.equal(matchesScope({ type: "host" }, videoUrl), false);
   });
 });
 
 describe("scopeMismatch", () => {
-  const url = "https://www.youtube.com/watch?v=1";
+  const url = "https://www.example.com/video?v=1";
 
   test("null when the scope matches", () => {
     assert.equal(scopeMismatch({ type: "all" }, url), null);
-    assert.equal(scopeMismatch({ type: "host", host: "youtube.com" }, url), null);
-    assert.equal(scopeMismatch({ type: "host", host: "youtube.com", path: "/watch" }, url), null);
+    assert.equal(scopeMismatch({ type: "host", host: "example.com" }, url), null);
+    assert.equal(scopeMismatch({ type: "host", host: "example.com", path: "/video" }, url), null);
   });
 
   test("says domain when the domain does not match", () => {
-    assert.equal(scopeMismatch({ type: "host", host: "vimeo.com" }, url), "domain");
-    assert.equal(scopeMismatch({ type: "host", host: "youtube.com", subdomains: false }, url), "domain");
+    assert.equal(scopeMismatch({ type: "host", host: "example.net" }, url), "domain");
+    assert.equal(scopeMismatch({ type: "host", host: "example.com", subdomains: false }, url), "domain");
   });
 
   test("says path when the domain matches and the path does not", () => {
-    assert.equal(scopeMismatch({ type: "host", host: "youtube.com", path: "/playlist" }, url), "path");
+    assert.equal(scopeMismatch({ type: "host", host: "example.com", path: "/albums" }, url), "path");
   });
 
   test("a domain mismatch wins over a path mismatch", () => {
-    assert.equal(scopeMismatch({ type: "host", host: "vimeo.com", path: "/playlist" }, url), "domain");
+    assert.equal(scopeMismatch({ type: "host", host: "example.net", path: "/albums" }, url), "domain");
   });
 
   test("something that is not a URL, or a scope that is not valid, is not reported", () => {

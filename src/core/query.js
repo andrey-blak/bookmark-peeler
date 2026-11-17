@@ -7,7 +7,7 @@
 /**
  * Splits a URL string into base, query and fragment without normalising anything.
  * query and fragment are null when absent and "" when present but empty
- * (so "https://e.com/?" and "https://e.com/" are told apart).
+ * (so "https://example.com/?" and "https://example.com/" are told apart).
  */
 export function splitUrl(url) {
   const hash = url.indexOf("#");
