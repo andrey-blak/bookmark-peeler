@@ -1,24 +1,12 @@
 // Excluded sites: domains where the add-on does nothing, whatever the rules say. No browser API here.
 // An entry is a plain domain name, written the same way as a rule's domain, and it covers the subdomains too.
 
-import { hostMatches, normalizeHost } from "./scope.js";
+import { normalizeHost } from "./scope.js";
+
+// Whether a URL is on one of the sites is decided in scope.js, which a rule's exceptions use too.
+export { isExcluded } from "./scope.js";
 
 const isText = value => typeof value === "string";
-
-// The entries that can be used, trimmed. Entries that are not a plain domain match nothing.
-const usable = sites => (Array.isArray(sites) ? sites : []).filter(isText).map(entry => entry.trim()).filter(entry => entry !== "");
-
-/** Whether the URL is on one of the excluded sites, or on a subdomain of one. */
-export function isExcluded(url, sites) {
-  let hostname;
-  try {
-    hostname = new URL(url).hostname;
-  } catch {
-    return false;
-  }
-
-  return usable(sites).some(entry => hostMatches(entry, true, hostname));
-}
 
 /**
  * What is wrong with the entries of a list: [{ index, entry, message }] for the ones that are not a plain domain.

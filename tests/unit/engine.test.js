@@ -287,3 +287,23 @@ describe("cleanUrlTraced", () => {
     assert.deepEqual(cleanUrlTraced("https://example.org/?utm_source=x", rules).changes, []);
   });
 });
+
+describe("cleanUrl: exceptions of a rule", () => {
+  const rule = (id, except) => ({ id, scope: { type: "all", except }, actions: [{ type: "remove", parameter: "utm_*" }] });
+
+  test("the rule is not applied on an excepted site, and is applied elsewhere", () => {
+    const rules = [rule("r", ["example.org"])];
+    assert.equal(cleanUrl("https://example.org/p?a=1&utm_source=x", rules), "https://example.org/p?a=1&utm_source=x");
+    assert.equal(cleanUrl("https://www.example.org/p?utm_source=x", rules), "https://www.example.org/p?utm_source=x");
+    assert.equal(cleanUrl("https://example.com/p?a=1&utm_source=x", rules), "https://example.com/p?a=1");
+  });
+
+  test("another rule without that exception still applies on the site", () => {
+    const rules = [rule("one", ["example.org"]), { id: "two", scope: { type: "all" }, actions: [{ type: "remove", parameter: "a" }] }];
+    assert.equal(cleanUrl("https://example.org/p?a=1&utm_source=x", rules), "https://example.org/p?utm_source=x");
+  });
+
+  test("the trace leaves nothing for a rule that was skipped on an excepted site", () => {
+    assert.deepEqual(cleanUrlTraced("https://example.org/p?utm_source=x", [rule("r", ["example.org"])]).changes, []);
+  });
+});

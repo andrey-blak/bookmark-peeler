@@ -285,3 +285,17 @@ Have a rule that removes `utm_*` on all sites, and bookmarks on `example.com`, `
 9. Uppercase works: `EXAMPLE.com` excludes `example.com`. A domain in non-ASCII letters excludes the matching site.
 10. Export the rules, add a site to the list, and import the file with "Replace my rules": the list is back to what the file has. "Add to my rules" keeps the current list.
 11. While typing in the text box, nothing else on the page changes it. If the page is open in two tabs, a change saved in one shows in the other once its text box is not focused.
+
+### Excluded sites of a rule
+
+Have a rule for all sites that removes `utm_*`, and bookmarks on `example.com`, `www.example.com` and `example.org` that have `?utm_source=x`.
+
+1. In "Applies to", under the Scope row and its hints, there is a heading "Excluded sites", styled like the one in Settings, and under it a text box labelled "Domains, one per line" with the placeholder `example.com` and the hint "The rule does nothing on these sites. Subdomains are included." It is there for All sites, Domain and Domain + path.
+2. Type `example.com`: the rule is now unsaved (the • mark, Save is active). Save and reload the page: the text box still has `example.com`.
+3. Bookmark `https://example.com/p?utm_source=x` and `https://www.example.com/p?utm_source=x`: both keep `utm_source`. Bookmark `https://example.org/p?utm_source=x`: it loses it.
+4. Put `https://example.com/p?utm_source=x` in "Try it": the URL is unchanged, "What changed" is empty, and the note says "This rule doesn't apply to this URL: the site is in its exceptions." This is the same with "All rules" and with "Current rule" selected. A URL on `example.org` is changed and has no such note.
+5. Another rule without the exception still cleans `https://example.com/p?utm_source=x` when "All rules" is selected.
+6. Change the scope to Domain `example.com` and put `shop.example.com` in the text box: `https://www.example.com/p?utm_source=x` is cleaned, and `https://shop.example.com/p?utm_source=x` and `https://a.shop.example.com/p?utm_source=x` are not. Switch the scope to All sites and back: the text box keeps its lines.
+7. Blank lines and spaces around a domain are ignored, and do not make Save active on their own.
+8. Type `*.example.com`, `example.com/path` or `example.com:8080` on a line: a red message under the text box names the entry and says what is wrong ("Wildcards aren't supported. Subdomains are included automatically." for the wildcard, "Enter just the domain, without a path, port or spaces." for the others), the text box is outlined, and the rule has the error mark in the list and is not applied: with Try it, the note says the rule has errors. Fix the line and the message goes away.
+9. Duplicate the rule: the copy has the same excluded sites. Export the rules and import the file: the excluded sites of the rule are there.

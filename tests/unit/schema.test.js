@@ -449,3 +449,68 @@ describe("the settings: excluded sites", () => {
     assert.deepEqual(normalizeConfig(once), once);
   });
 });
+
+describe("scope exceptions in rules", () => {
+  const withScope = scope => ({ scope, actions: [{ type: "remove", parameter: "a" }] });
+
+  test("the list is kept for both scope types, trimmed, without blank entries", () => {
+    assert.deepEqual(normalizeRule(withScope({ type: "all", except: [" example.org ", "", "  ", "example.net"] })).scope, { type: "all", except: ["example.org", "example.net"] });
+    assert.deepEqual(
+      normalizeRule(withScope({ type: "host", host: "example.com", except: ["shop.example.com"] })).scope,
+      { type: "host", host: "example.com", subdomains: true, except: ["shop.example.com"] },
+    );
+  });
+
+  test("an empty list, a missing list and anything but a list are left out", () => {
+    for (const except of [[], ["", "  "], undefined, null, "example.org", 5]) {
+      assert.equal("except" in normalizeRule(withScope({ type: "all", except })).scope, false, JSON.stringify(except));
+    }
+  });
+
+  test("entries that are not text are dropped", () => {
+    assert.deepEqual(normalizeRule(withScope({ type: "all", except: [1, null, "example.org", {}] })).scope.except, ["example.org"]);
+  });
+
+  test("normalising again changes nothing", () => {
+    const once = normalizeRule(withScope({ type: "all", except: [" a.example ", "", "b.example"] }));
+    assert.deepEqual(normalizeRule(once), once);
+  });
+
+  test("a list of plain domains has no issues, on every scope type", () => {
+    assert.deepEqual(validateRule(withScope({ type: "all", except: ["example.org", "www.example.net"] })), []);
+    assert.deepEqual(validateRule(withScope({ type: "host", host: "example.com", except: ["shop.example.com"] })), []);
+  });
+
+  test("an entry that is not a plain domain is an error on the list, so the rule is not applied", () => {
+    for (const entry of ["*.example.org", "example.org/path", "example.org:8080", "exam ple.org"]) {
+      const issues = validateRule(withScope({ type: "all", except: ["example.net", entry] }));
+      assert.equal(find(issues, "scope.except")?.severity, "error", entry);
+      assert.ok(find(issues, "scope.except").message.includes(entry), entry);
+    }
+  });
+
+  test("a wildcard says that wildcards are not supported and that subdomains are included", () => {
+    const message = find(validateRule(withScope({ type: "all", except: ["*.example.org"] })), "scope.except").message;
+    assert.match(message, /wildcard/i);
+    assert.match(message, /subdomains/i);
+  });
+
+  test("every bad entry is named in the message", () => {
+    const message = find(validateRule(withScope({ type: "all", except: ["*", "example.org/x"] })), "scope.except").message;
+    assert.ok(message.includes("*") && message.includes("example.org/x"));
+  });
+
+  test("a list that is not a list is an error", () => {
+    assert.equal(find(validateRule(withScope({ type: "all", except: "example.org" })), "scope.except")?.severity, "error");
+  });
+
+  test("blank entries are not errors", () => {
+    assert.deepEqual(validateRule(withScope({ type: "all", except: ["example.org", "", "  "] })), []);
+  });
+
+  test("usableRules leaves out a rule with a bad exception", () => {
+    const bad = { id: "bad", ...withScope({ type: "all", except: ["*"] }) };
+    const good = { id: "good", ...withScope({ type: "all", except: ["example.org"] }) };
+    assert.deepEqual(usableRules([bad, good]).map(r => r.id), ["good"]);
+  });
+});

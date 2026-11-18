@@ -79,11 +79,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   }
 
   /** A text box with one entry per line; the draft holds the lines as a list. */
-  function linesField(label, path, placeholder) {
+  function linesField(label, path, placeholder, { rows = 4 } = {}) {
     const key = pathKey(path);
     const value = path.reduce((node, part) => node?.[part], draft);
     const area = el("textarea", {
-      rows: 4,
+      rows,
       value: Array.isArray(value) ? value.join("\n") : "",
       placeholder,
       spellcheck: false,
@@ -124,6 +124,14 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     if (mode === "path") {
       section.append(el("p", { className: "hint" }, "Use * for one level and ** for any depth, for example albums/* or a/**."));
     }
+
+    // Sites where the rule does nothing, for every scope.
+    // Drawn like the same list in Settings: a heading, the box labelled "Domains, one per line", and the hint.
+    section.append(el("div", { className: "excluded-sites" },
+      el("h3", {}, "Excluded sites"),
+      linesField("Domains, one per line", ["scope", "except"], "example.com", { rows: 3 }),
+      el("p", { className: "hint" }, "The rule does nothing on these sites. Subdomains are included."),
+      slot("scope.except")));
     return section;
   }
 

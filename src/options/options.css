@@ -913,8 +913,13 @@ dialog .lines li {
   margin-top: 24px;
 }
 
-.settings-section textarea {
+.settings-section textarea,
+.excluded-sites textarea {
   width: 100%;
+}
+
+.excluded-sites {
+  margin-top: 24px;
 }
 
 .site-messages {

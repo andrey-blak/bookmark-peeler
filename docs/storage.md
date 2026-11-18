@@ -48,6 +48,7 @@ Rules run in list order and every matching rule applies; each sees the result of
 | `host` | string | when `type` is `host` | none | Plain domain name such as `example.com`: no path, port, `@`, `*` or spaces. Case-insensitive; non-ASCII names are matched in their punycode form. |
 | `subdomains` | boolean | no | `true` | Also match subdomains, so `example.com` matches `www.example.com`. Only `false` turns it off. |
 | `path` | string | no | none (any path) | Path or path pattern, see below. Cannot contain `?` or `#`. |
+| `except` | array of string | no | none | Domains where the rule does nothing, on every scope type. An entry is a plain domain name, written like `host` (no path, port, `*` or spaces), and covers its subdomains. Entries are trimmed, and blank ones are dropped; an empty list is left out. |
 
 `host` and `subdomains` and `path` are used only when `type` is `host`.
 
@@ -118,7 +119,7 @@ At least one of `parameter` and `value` needs a non-empty `find`.
 
 | Severity | Cases |
 |---|---|
-| error | no or unknown scope `type`; missing or invalid `host`; `path` containing `?` or `#`; unknown action `type`; empty `parameter` in `remove`; no parameter names, or a name that is not text, in `keep`; `replace` with no non-empty `find`; invalid regular expression; non-text `find` or `replace` |
+| error | no or unknown scope `type`; missing or invalid `host`; `path` containing `?` or `#`; an entry of `except` that is not a plain domain, or an `except` that is not a list; unknown action `type`; empty `parameter` in `remove`; no parameter names, or a name that is not text, in `keep`; `replace` with no non-empty `find`; invalid regular expression; non-text `find` or `replace` |
 | warning | no actions; `replace` that replaces nothing (no pattern has `replace`); `replace` set on a pattern without `find` |
 
 A rule with errors stays in storage so it can be fixed, but is not applied.

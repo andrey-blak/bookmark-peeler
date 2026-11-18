@@ -31,6 +31,7 @@ The decisions behind the add-on.
 - The add-on records the URLs it writes itself and ignores the edit event they cause, so a rule that changes its own output cannot loop.
 - Import and sync are not separate events: `bookmarks.onCreated` fires for them too.
 - Excluded sites: a list in Settings of domains (subdomains included) where the add-on does nothing, whatever the rules say. A new bookmark, an edited one and the bulk clean all skip them. The list is stored with the settings.
+- A rule can have its own list of excluded sites, with the same kind of entries, under "Applies to" for every scope type. A bad entry there is an error, so the rule is not applied instead of running on a site that was meant to be left alone.
 - Rules are read from storage for every bookmark, so a change made on the page applies at once. Failures are logged to the add-on console; successes are not logged.
 
 ## Clean existing bookmarks

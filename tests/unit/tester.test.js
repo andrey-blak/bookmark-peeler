@@ -366,3 +366,35 @@ describe("excluded sites in Try it", () => {
     assert.deepEqual(result.notes, ["This rule has errors, so it isn't applied.", NOTE]);
   });
 });
+
+describe("exceptions of the rule in Try it", () => {
+  const withExcept = except => visibility({ scope: { type: "all", except } });
+  const NOTE = "This rule doesn't apply to this URL: the site is in its exceptions.";
+
+  test("on an excepted site the URL is unchanged in both modes, with the note", () => {
+    for (const mode of ["current", "all"]) {
+      const result = testRules(EXAMPLE_URL, { draft: withExcept(["example.com"]), rules: [], mode });
+      assert.equal(result.url, EXAMPLE_URL, mode);
+      assert.deepEqual(result.changes, [], mode);
+      assert.deepEqual(result.notes, [NOTE], mode);
+    }
+  });
+
+  test("subdomains of an excepted site get the same", () => {
+    const result = testRules("https://www.example.com/new?visibility=public", { draft: withExcept(["example.com"]), rules: [], mode: "current" });
+    assert.deepEqual(result.notes, [NOTE]);
+  });
+
+  test("a site that is not excepted is cleaned, without the note", () => {
+    const result = testRules(EXAMPLE_URL, { draft: withExcept(["example.org"]), rules: [], mode: "current" });
+    assert.equal(result.changes.length, 1);
+    assert.deepEqual(result.notes, []);
+  });
+
+  test("the draft's own exceptions are used, not the stored ones", () => {
+    const stored = withExcept(["example.com"]);
+    const draft = withExcept([]);
+    const result = testRules(EXAMPLE_URL, { draft, rules: [stored], mode: "all" });
+    assert.equal(result.changes.length, 1);
+  });
+});

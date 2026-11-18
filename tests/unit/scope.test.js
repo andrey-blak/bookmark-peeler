@@ -229,3 +229,62 @@ describe("scopeMismatch", () => {
     assert.equal(scopeMismatch(undefined, url), null);
   });
 });
+
+describe("scope exceptions (except)", () => {
+  const all = except => ({ type: "all", except });
+  const host = (except, extra = {}) => ({ type: "host", host: "example.com", except, ...extra });
+
+  test("all sites: a URL on an excepted site does not match, any other does", () => {
+    assert.equal(matchesScope(all(["example.org"]), "https://example.org/p?a=1"), false);
+    assert.equal(matchesScope(all(["example.org"]), "https://example.com/p?a=1"), true);
+  });
+
+  test("the subdomains of an excepted site do not match either", () => {
+    assert.equal(matchesScope(all(["example.org"]), "https://www.example.org/"), false);
+    assert.equal(matchesScope(all(["www.example.org"]), "https://example.org/"), true);
+  });
+
+  test("a domain scope can except one of its subdomains", () => {
+    const scope = host(["shop.example.com"]);
+    assert.equal(matchesScope(scope, "https://www.example.com/p"), true);
+    assert.equal(matchesScope(scope, "https://shop.example.com/p"), false);
+    assert.equal(matchesScope(scope, "https://a.shop.example.com/p"), false);
+  });
+
+  test("a domain + path scope respects the exceptions too", () => {
+    const scope = host(["shop.example.com"], { path: "/video" });
+    assert.equal(matchesScope(scope, "https://www.example.com/video"), true);
+    assert.equal(matchesScope(scope, "https://shop.example.com/video"), false);
+  });
+
+  test("case, the port and the path of the URL do not matter", () => {
+    assert.equal(matchesScope(all(["Example.ORG"]), "https://example.org:8443/a/b?c=d#e"), false);
+  });
+
+  test("an empty or missing list excepts nothing", () => {
+    assert.equal(matchesScope(all([]), "https://example.org/"), true);
+    assert.equal(matchesScope({ type: "all" }, "https://example.org/"), true);
+    assert.equal(matchesScope(all("example.org"), "https://example.org/"), true);
+  });
+
+  test("entries that are not plain domains match nothing and do not stop the valid ones", () => {
+    assert.equal(matchesScope(all(["*", "example.org/x", ""]), "https://example.org/"), true);
+    assert.equal(matchesScope(all(["*", "example.org"]), "https://example.org/"), false);
+  });
+});
+
+describe("scopeMismatch with exceptions", () => {
+  test("says except when the URL is on an excepted site", () => {
+    assert.equal(scopeMismatch({ type: "all", except: ["example.org"] }, "https://www.example.org/p"), "except");
+    assert.equal(scopeMismatch({ type: "host", host: "example.com", except: ["shop.example.com"] }, "https://shop.example.com/p"), "except");
+  });
+
+  test("a domain or path mismatch is reported before the exceptions", () => {
+    assert.equal(scopeMismatch({ type: "host", host: "example.com", except: ["example.org"] }, "https://example.org/"), "domain");
+    assert.equal(scopeMismatch({ type: "host", host: "example.com", path: "/video", except: ["shop.example.com"] }, "https://shop.example.com/other"), "path");
+  });
+
+  test("null when the scope matches", () => {
+    assert.equal(scopeMismatch({ type: "all", except: ["example.org"] }, "https://example.com/"), null);
+  });
+});

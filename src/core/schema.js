@@ -6,6 +6,7 @@
 // Validation returns issues; it never throws.
 
 import { normalizeHost } from "./scope.js";
+import { siteIssues } from "./exclusions.js";
 
 export const SCHEMA_VERSION = 1;
 
@@ -26,10 +27,15 @@ const newId = () => crypto.randomUUID();
 
 // --- Normalisation ---
 
+// The entries of a list that are text, trimmed, without blank ones.
+const cleanList = list => (Array.isArray(list) ? list : []).filter(isText).map(entry => entry.trim()).filter(entry => entry !== "");
+
 function normalizeScope(raw) {
   if (!isObject(raw)) return {};
 
-  if (raw.type === "all") return { type: "all" };
+  const except = cleanList(raw.except);
+
+  if (raw.type === "all") return except.length > 0 ? { type: "all", except } : { type: "all" };
 
   if (raw.type === "host") {
     const scope = {
@@ -38,6 +44,7 @@ function normalizeScope(raw) {
       subdomains: raw.subdomains !== false,
     };
     if (isText(raw.path) && raw.path.trim() !== "") scope.path = raw.path.trim();
+    if (except.length > 0) scope.except = except;
     return scope;
   }
 
@@ -150,8 +157,20 @@ export function readConfig(stored) {
 const error = (path, message) => ({ path, severity: "error", message });
 const warning = (path, message) => ({ path, severity: "warning", message });
 
+// The sites where the rule does nothing must be plain domains. A bad entry is an error, so the rule is not applied
+// instead of running on a site that was meant to be left alone.
+function validateExceptions(except) {
+  if (except === undefined) return [];
+  if (!Array.isArray(except)) return [error(["scope", "except"], "The excluded sites must be a list.")];
+
+  const issues = siteIssues(except);
+  if (issues.length === 0) return [];
+
+  return [error(["scope", "except"], issues.map(issue => `“${issue.entry}”: ${issue.message}`).join(" "))];
+}
+
 function validateScope(scope) {
-  if (scope?.type === "all") return [];
+  if (scope?.type === "all") return validateExceptions(scope.except);
 
   if (scope?.type !== "host") return [error(["scope", "type"], "Choose where the rule applies.")];
 
@@ -173,6 +192,7 @@ function validateScope(scope) {
     }
   }
 
+  issues.push(...validateExceptions(scope.except));
   return issues;
 }
 

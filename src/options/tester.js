@@ -53,7 +53,8 @@ export function testRules(input, { draft, rules, mode, excludedSites = [] }) {
     notes.push("This rule has errors, so it isn't applied.");
   } else if (!notes.length) {
     const mismatch = scopeMismatch(draft.scope, url);
-    if (mismatch) notes.push(`This rule doesn't apply to this URL: the ${mismatch} doesn't match.`);
+    if (mismatch === "except") notes.push("This rule doesn't apply to this URL: the site is in its exceptions.");
+    else if (mismatch) notes.push(`This rule doesn't apply to this URL: the ${mismatch} doesn't match.`);
   }
 
   // In "Current rule" mode the rule's own change is still shown, with the note that the add-on would not make it.
