@@ -186,3 +186,47 @@ describe("applyUrlChanges", () => {
     assert.deepEqual(await applyUrlChanges([], deps), { updated: [], skipped: [], failed: [] });
   });
 });
+
+describe("excluded sites", () => {
+  const withSites = (excludedSites, cleanOnEdit = true) => ({
+    schemaVersion: 1,
+    settings: { cleanOnEdit, excludedSites },
+    rules: [removePp],
+  });
+
+  test("a new bookmark on an excluded site is left alone", async () => {
+    const { deps, calls } = setup(withSites(["example.com"]));
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
+    assert.deepEqual(calls.updates, []);
+  });
+
+  test("an edited bookmark on an excluded site is left alone", async () => {
+    const { deps, calls } = setup(withSites(["example.com"]));
+    await handleBookmarkChanged("b1", { url: VIDEO_URL }, deps);
+    assert.deepEqual(calls.updates, []);
+  });
+
+  test("subdomains of an excluded site are left alone too", async () => {
+    const { deps, calls } = setup(withSites(["example.com"]));
+    await handleBookmarkCreated({ id: "b1", url: "https://www.example.com/video?pp=x" }, deps);
+    assert.deepEqual(calls.updates, []);
+  });
+
+  test("a site that is not excluded is cleaned as usual", async () => {
+    const { deps, calls } = setup(withSites(["example.org"]));
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
+    assert.equal(calls.updates.length, 1);
+  });
+
+  test("entries that are not plain domains do not exclude anything", async () => {
+    const { deps, calls } = setup(withSites(["*", "example.com/video"]));
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
+    assert.equal(calls.updates.length, 1);
+  });
+
+  test("storage without the setting excludes nothing", async () => {
+    const { deps, calls } = setup({ schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [removePp] });
+    await handleBookmarkCreated({ id: "b1", url: VIDEO_URL }, deps);
+    assert.equal(calls.updates.length, 1);
+  });
+});

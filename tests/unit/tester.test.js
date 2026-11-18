@@ -323,3 +323,46 @@ describe("mergeStrayRemovals", () => {
     assert.equal(changes.length, 2);
   });
 });
+
+describe("excluded sites in Try it", () => {
+  const NOTE = "This site is in the Excluded sites list, so nothing would be cleaned.";
+  const sites = ["example.com"];
+
+  test("All rules: the URL is not changed, there are no changes, and the note says why", () => {
+    const result = testRules(EXAMPLE_URL, { draft: visibility(), rules: [tracking()], mode: "all", excludedSites: sites });
+    assert.equal(result.url, EXAMPLE_URL);
+    assert.deepEqual(result.changes, []);
+    assert.ok(result.notes.includes(NOTE));
+  });
+
+  test("Current rule: the changed URL is shown, and the note is there too", () => {
+    const result = testRules(EXAMPLE_URL, { draft: visibility(), rules: [], mode: "current", excludedSites: sites });
+    assert.equal(result.url, "https://example.com/new?owner=me&visibility=private&utm_source=x");
+    assert.equal(result.changes.length, 1);
+    assert.ok(result.notes.includes(NOTE));
+  });
+
+  test("subdomains of an excluded site get the same", () => {
+    const result = testRules("https://www.example.com/new?utm_source=x", { draft: tracking(), rules: [], mode: "all", excludedSites: sites });
+    assert.equal(result.url, "https://www.example.com/new?utm_source=x");
+    assert.ok(result.notes.includes(NOTE));
+  });
+
+  test("a site that is not excluded has no such note, and is cleaned", () => {
+    const result = testRules("https://example.net/new?utm_source=x", { draft: tracking(), rules: [], mode: "all", excludedSites: sites });
+    assert.equal(result.url, "https://example.net/new");
+    assert.equal(result.notes.includes(NOTE), false);
+  });
+
+  test("without a list nothing is excluded", () => {
+    const result = testRules(EXAMPLE_URL, { draft: visibility(), rules: [], mode: "all" });
+    assert.equal(result.notes.includes(NOTE), false);
+    assert.equal(result.changes.length, 1);
+  });
+
+  test("other notes still come first when the rule has errors", () => {
+    const draft = visibility({ scope: { type: "host", host: "" } });
+    const result = testRules(EXAMPLE_URL, { draft, rules: [], mode: "current", excludedSites: sites });
+    assert.deepEqual(result.notes, ["This rule has errors, so it isn't applied.", NOTE]);
+  });
+});

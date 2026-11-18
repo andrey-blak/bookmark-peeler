@@ -30,6 +30,7 @@ The decisions behind the add-on.
 - When a bookmark is created, and, with the setting `cleanOnEdit` (off by default), when its URL is edited. A change of the title or a move is ignored.
 - The add-on records the URLs it writes itself and ignores the edit event they cause, so a rule that changes its own output cannot loop.
 - Import and sync are not separate events: `bookmarks.onCreated` fires for them too.
+- Excluded sites: a list in Settings of domains (subdomains included) where the add-on does nothing, whatever the rules say. A new bookmark, an edited one and the bulk clean all skip them. The list is stored with the settings.
 - Rules are read from storage for every bookmark, so a change made on the page applies at once. Failures are logged to the add-on console; successes are not logged.
 
 ## Clean existing bookmarks

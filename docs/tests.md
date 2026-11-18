@@ -269,3 +269,19 @@ Use a rule with the action "Keep only these parameters" listing `a` and `b`, and
 2. Add `c=3` to the URL: the list has two lines, `✕ Removed: &` and `✕ Removed: c=3`, and the count is 2.
 3. Use a rule with a Remove action with the parameter `*` instead: with `https://example.com/p?a=1&&b=2&&`, the lines are `a=1`, `&` and `b=2`, with `&` where the first stray one was. A Remove with `utm_*` does not list `&`.
 4. With "All rules" selected, the `&` line names the rule that removed it, like the other lines.
+
+### Excluded sites
+
+Have a rule that removes `utm_*` on all sites, and bookmarks on `example.com`, `www.example.com` and `example.org` that have `?utm_source=x`.
+
+1. The Settings panel has a section "Excluded sites" with a text box, the label "Domains, one per line", the placeholder `example.com`, and the hint "The add-on does nothing on these sites. Subdomains are included."
+2. Type `example.com` and click outside the text box. Reload the page: the text box still has `example.com`. Settings changes made in the console, `await browser.storage.sync.get("settings")`, show `excludedSites: ["example.com"]`.
+3. Bookmark `https://example.com/p?utm_source=x`, and `https://www.example.com/p?utm_source=x`: both keep `utm_source`. Bookmark `https://example.org/p?utm_source=x`: it loses it.
+4. With "Also clean a bookmark when its URL is edited" ticked, edit the Location of a bookmark to `https://example.com/p?utm_source=x`: it keeps `utm_source`. Edit it to `https://example.org/p?utm_source=x`: it is cleaned.
+5. "Clean existing bookmarks…": the bookmarks on `example.com` and `www.example.com` are not in the list of changes, and the total of looked-at bookmarks still counts them.
+6. Open a rule and put `https://example.com/p?utm_source=x` in "Try it" with "All rules" selected: the URL is unchanged, "What changed" is empty, and the note says "This site is in the Excluded sites list, so nothing would be cleaned." With "Current rule" selected: the URL is changed by the open rule, and the same note is shown. `https://www.example.com/p?utm_source=x` gives the same, and `https://example.org/p?utm_source=x` gives no such note.
+7. Change the list in Settings and go back to a rule: the note appears or disappears at once for the URL in "Try it".
+8. Blank lines and spaces around a domain are ignored, and the text box shows the list without them after you leave it. Type `*.example.com` or `example.com/path` or `example.com:8080`: a red message under the box names the entry and says what is wrong: "Wildcards aren't supported. Subdomains are included automatically." for the wildcard, and "Enter just the domain, without a path, port or spaces." for the others. Leave the box with a good entry in the list too, such as `example.org`: the good entries are saved, and the bad ones are not. After a reload the box has only the good ones.
+9. Uppercase works: `EXAMPLE.com` excludes `example.com`. A domain in non-ASCII letters excludes the matching site.
+10. Export the rules, add a site to the list, and import the file with "Replace my rules": the list is back to what the file has. "Add to my rules" keeps the current list.
+11. While typing in the text box, nothing else on the page changes it. If the page is open in two tabs, a change saved in one shows in the other once its text box is not focused.

@@ -3,6 +3,7 @@
 import { cleanUrl } from "../core/engine.js";
 import { usableRules } from "../core/schema.js";
 import { highlightSegments } from "./tester.js";
+import { isExcluded } from "../core/exclusions.js";
 
 /** The bookmarks of a bookmarks.getTree() result, in tree order, as { id, title, url }. Folders and separators are skipped. */
 export function flattenBookmarks(nodes) {
@@ -19,13 +20,16 @@ export function flattenBookmarks(nodes) {
 
 /**
  * What cleaning would do: { total, changes: [{ id, title, url, newUrl }] } with only the bookmarks that change.
- * It uses the same rules as the add-on does for a new bookmark: enabled ones without errors.
+ * It uses the same rules as the add-on does for a new bookmark: enabled ones without errors, and not on an excluded site.
  */
-export function planClean(bookmarks, rules) {
+export function planClean(bookmarks, rules, excludedSites = []) {
   const usable = usableRules(rules);
   const changes = [];
 
   for (const { id, title, url } of bookmarks) {
+    // Bookmarks on an excluded site are left alone, but still counted in the total.
+    if (isExcluded(url, excludedSites)) continue;
+
     const newUrl = cleanUrl(url, usable);
     if (newUrl !== url) changes.push({ id, title, url, newUrl });
   }

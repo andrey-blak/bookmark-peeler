@@ -26,6 +26,7 @@ The rest of this page describes a config, `{ schemaVersion, settings, rules }`: 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
 | `cleanOnEdit` | boolean | `false` | Also clean a bookmark when its URL is edited, not only when it is created. |
+| `excludedSites` | array of string | `[]` | Domains where the add-on does nothing. An entry is a plain domain name, written like a rule's domain (no path, port, `*` or spaces), and covers its subdomains. Entries are trimmed and blank ones are dropped. An entry that is not a plain domain is dropped when the settings are read, and the Settings page leaves it out when it saves the list. |
 
 ## Rule
 
@@ -128,7 +129,7 @@ A rule with only warnings is applied.
 ```json
 {
   "schemaVersion": 1,
-  "settings": { "cleanOnEdit": false },
+  "settings": { "cleanOnEdit": false, "excludedSites": ["example.org"] },
   "rules": [
     {
       "id": "0b9d6c0e-6a41-4c1e-8d52-3d3f4e0a7b11",

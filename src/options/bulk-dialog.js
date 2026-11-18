@@ -18,11 +18,12 @@ const setUrls = changes => browser.runtime.sendMessage({ type: "set-bookmark-url
 /**
  * @param options.dialog the <dialog> with the preview (see index.html)
  * @param options.getRules returns the stored rules
+ * @param options.getExcludedSites returns the list of excluded sites, whose bookmarks are left alone
  * @param options.notify (text) shows a short message
  * @param options.notifyUndo (text, restore) shows a message with an Undo button
  * @param options.onChange called when the number of bookmarks that can be restored changes
  */
-export function createBulkClean({ dialog, getRules, notify, notifyUndo, onChange }) {
+export function createBulkClean({ dialog, getRules, getExcludedSites, notify, notifyUndo, onChange }) {
   let last = null; // { changes, updated }: the last clean, kept only while the page is open
 
   const $ = selector => dialog.querySelector(selector);
@@ -78,7 +79,7 @@ export function createBulkClean({ dialog, getRules, notify, notifyUndo, onChange
 
     let plan;
     try {
-      plan = planClean(flattenBookmarks(await browser.bookmarks.getTree()), getRules());
+      plan = planClean(flattenBookmarks(await browser.bookmarks.getTree()), getRules(), getExcludedSites());
     } catch (error) {
       console.error("Bookmark Peeler:", error);
       $("#bulk-summary").textContent = "Couldn't read your bookmarks.";

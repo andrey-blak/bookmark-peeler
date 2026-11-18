@@ -15,7 +15,7 @@ export const NAME_MAX = 64;
 export function defaultConfig() {
   return {
     schemaVersion: SCHEMA_VERSION,
-    settings: { cleanOnEdit: false },
+    settings: { cleanOnEdit: false, excludedSites: [] },
     rules: [],
   };
 }
@@ -115,7 +115,14 @@ export function normalizeConfig(raw) {
 
   return {
     schemaVersion: SCHEMA_VERSION,
-    settings: { cleanOnEdit: source.settings?.cleanOnEdit === true },
+    settings: {
+      cleanOnEdit: source.settings?.cleanOnEdit === true,
+      // Trimmed. An entry that is not a plain domain is dropped.
+      excludedSites: (Array.isArray(source.settings?.excludedSites) ? source.settings.excludedSites : [])
+        .filter(isText)
+        .map(entry => entry.trim())
+        .filter(entry => entry !== "" && normalizeHost(entry) !== null),
+    },
     rules,
   };
 }

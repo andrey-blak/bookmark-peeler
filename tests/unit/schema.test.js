@@ -36,7 +36,7 @@ describe("defaultConfig", () => {
   test("is an empty, versioned config with cleanOnEdit off", () => {
     assert.deepEqual(defaultConfig(), {
       schemaVersion: SCHEMA_VERSION,
-      settings: { cleanOnEdit: false },
+      settings: { cleanOnEdit: false, excludedSites: [] },
       rules: [],
     });
   });
@@ -203,13 +203,13 @@ describe("normalizeConfig", () => {
   });
 
   test("keeps good settings and rules", () => {
-    const config = { schemaVersion: SCHEMA_VERSION, settings: { cleanOnEdit: true }, rules: [goodRule()] };
+    const config = { schemaVersion: SCHEMA_VERSION, settings: { cleanOnEdit: true, excludedSites: [] }, rules: [goodRule()] };
     assert.deepEqual(normalizeConfig(config), config);
   });
 
   test("settings default to off and unknown settings are dropped", () => {
-    assert.deepEqual(normalizeConfig({ settings: { cleanOnEdit: "yes", other: 1 } }).settings, { cleanOnEdit: false });
-    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false });
+    assert.deepEqual(normalizeConfig({ settings: { cleanOnEdit: "yes", other: 1 } }).settings, { cleanOnEdit: false, excludedSites: [] });
+    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false, excludedSites: [] });
   });
 
   test("rules that are not objects are dropped, and a missing list is empty", () => {
@@ -244,7 +244,7 @@ describe("readConfig", () => {
   });
 
   test("reads a stored config", () => {
-    const stored = { schemaVersion: 1, settings: { cleanOnEdit: true }, rules: [goodRule()] };
+    const stored = { schemaVersion: 1, settings: { cleanOnEdit: true, excludedSites: [] }, rules: [goodRule()] };
     assert.deepEqual(readConfig(stored), { status: "ok", config: stored });
   });
 
@@ -414,5 +414,38 @@ describe("usableRules", () => {
 
   test("anything that is not a list gives an empty list", () => {
     assert.deepEqual(usableRules(undefined), []);
+  });
+});
+
+describe("the settings: excluded sites", () => {
+  test("the default is an empty list, next to cleanOnEdit", () => {
+    assert.deepEqual(defaultConfig().settings, { cleanOnEdit: false, excludedSites: [] });
+    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false, excludedSites: [] });
+  });
+
+  test("the list is kept, trimmed, without blank entries", () => {
+    const { settings } = normalizeConfig({ settings: { excludedSites: [" example.com ", "", "  ", "example.org"] } });
+    assert.deepEqual(settings.excludedSites, ["example.com", "example.org"]);
+  });
+
+  test("entries that are not text are dropped, and anything but a list is an empty list", () => {
+    assert.deepEqual(normalizeConfig({ settings: { excludedSites: [1, null, "example.com", {}] } }).settings.excludedSites, ["example.com"]);
+    assert.deepEqual(normalizeConfig({ settings: { excludedSites: "example.com" } }).settings.excludedSites, []);
+    assert.deepEqual(normalizeConfig({ settings: { excludedSites: null } }).settings.excludedSites, []);
+  });
+
+  test("an entry that is not a plain domain is dropped, and the valid ones stay", () => {
+    const { settings } = normalizeConfig({ settings: { excludedSites: ["*.example.com", "example.com/path", "example.com:8080", "a b.com", "example.org"] } });
+    assert.deepEqual(settings.excludedSites, ["example.org"]);
+  });
+
+  test("reads back from storage with the list", () => {
+    const stored = { schemaVersion: 1, settings: { cleanOnEdit: true, excludedSites: ["example.com"] }, rules: [] };
+    assert.deepEqual(readConfig(stored).config.settings, { cleanOnEdit: true, excludedSites: ["example.com"] });
+  });
+
+  test("normalising again changes nothing", () => {
+    const once = normalizeConfig({ settings: { excludedSites: [" a.example ", "", "b.example"] } });
+    assert.deepEqual(normalizeConfig(once), once);
   });
 });

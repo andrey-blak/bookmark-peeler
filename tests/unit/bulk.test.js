@@ -132,3 +132,27 @@ describe("diffSegments", () => {
     assert.equal(text(after), c.newUrl);
   });
 });
+
+describe("planClean with excluded sites", () => {
+  const list = [
+    { id: "1", title: "Excluded", url: "https://example.com/?a=1&utm_source=x" },
+    { id: "2", title: "Subdomain", url: "https://www.example.com/?utm_source=x" },
+    { id: "3", title: "Other", url: "https://example.org/?utm_source=x" },
+  ];
+  const trk = [{ id: "trk", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] }];
+
+  test("bookmarks on excluded sites, and their subdomains, are left out of the changes but still counted", () => {
+    const { total, changes } = planClean(list, trk, ["example.com"]);
+    assert.equal(total, 3);
+    assert.deepEqual(changes.map(c => c.id), ["3"]);
+  });
+
+  test("without a list, or with an empty one, nothing is excluded", () => {
+    assert.equal(planClean(list, trk).changes.length, 3);
+    assert.equal(planClean(list, trk, []).changes.length, 3);
+  });
+
+  test("entries that are not plain domains exclude nothing", () => {
+    assert.equal(planClean(list, trk, ["*", "example.com/x"]).changes.length, 3);
+  });
+});

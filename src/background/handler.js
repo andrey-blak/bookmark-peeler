@@ -3,6 +3,7 @@
 
 import { cleanUrl } from "../core/engine.js";
 import { readConfig, usableRules } from "../core/schema.js";
+import { isExcluded } from "../core/exclusions.js";
 
 /**
  * Cleans the URL of a newly created bookmark.
@@ -20,6 +21,7 @@ export async function handleBookmarkCreated(bookmark, { loadStored, updateBookma
 
   const loaded = readConfig(await loadStored());
   if (loaded.status !== "ok") return;
+  if (isExcluded(bookmark.url, loaded.config.settings.excludedSites)) return;
 
   const cleaned = cleanUrl(bookmark.url, usableRules(loaded.config.rules));
   if (cleaned === bookmark.url) return;
@@ -42,6 +44,7 @@ export async function handleBookmarkChanged(id, changeInfo, { loadStored, update
 
   const loaded = readConfig(await loadStored());
   if (loaded.status !== "ok" || !loaded.config.settings.cleanOnEdit) return;
+  if (isExcluded(url, loaded.config.settings.excludedSites)) return;
 
   const cleaned = cleanUrl(url, usableRules(loaded.config.rules));
   if (cleaned === url) return;

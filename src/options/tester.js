@@ -2,6 +2,7 @@
 
 import { cleanUrlTraced, isWebUrl } from "../core/engine.js";
 import { scopeMismatch } from "../core/scope.js";
+import { isExcluded } from "../core/exclusions.js";
 import { splitUrl } from "../core/query.js";
 import { validateRule, hasErrors, usableRules } from "../core/schema.js";
 
@@ -11,6 +12,7 @@ import { validateRule, hasErrors, usableRules } from "../core/schema.js";
  * @param input the text of the URL field
  * @param draft the rule in the editor, with its unsaved changes
  * @param rules the stored rules
+ * @param excludedSites the list of excluded sites: in "All rules" mode nothing is cleaned on them, and in both modes a note says so
  * @param mode "current": only the draft. Anything else: all stored rules, in order, with the draft in place of its
  *   stored version (or after them when it is new).
  *
@@ -19,12 +21,13 @@ import { validateRule, hasErrors, usableRules } from "../core/schema.js";
  * where changes are those of cleanUrlTraced, segments mark the changed parts of the resulting URL, and notes
  * are sentences saying why the draft did nothing (errors, switched off, scope).
  */
-export function testRules(input, { draft, rules, mode }) {
+export function testRules(input, { draft, rules, mode, excludedSites = [] }) {
   const url = input.trim();
   if (url === "") return { status: "empty" };
   if (!isWebUrl(url)) return { status: "invalid" };
 
   const notes = [];
+  const excluded = isExcluded(url, excludedSites);
   const usable = !hasErrors(validateRule(draft));
   const stored = Array.isArray(rules) ? rules : [];
   let toRun;
@@ -36,11 +39,14 @@ export function testRules(input, { draft, rules, mode }) {
     const merged = exists
       ? stored.map(rule => (rule.id === draft.id ? { ...draft, enabled: rule.enabled } : rule))
       : [...stored, draft];
-    toRun = usableRules(merged);
+    const candidates = usableRules(merged);
 
-    if (usable && toRun.find(rule => rule.id === draft.id)?.enabled === false) {
+    if (usable && candidates.find(rule => rule.id === draft.id)?.enabled === false) {
       notes.push("This rule is switched off in the list, so it isn't applied.");
     }
+
+    // On an excluded site the add-on does nothing, so no rule runs.
+    toRun = excluded ? [] : candidates;
   }
 
   if (!usable) {
@@ -49,6 +55,9 @@ export function testRules(input, { draft, rules, mode }) {
     const mismatch = scopeMismatch(draft.scope, url);
     if (mismatch) notes.push(`This rule doesn't apply to this URL: the ${mismatch} doesn't match.`);
   }
+
+  // In "Current rule" mode the rule's own change is still shown, with the note that the add-on would not make it.
+  if (excluded) notes.push("This site is in the Excluded sites list, so nothing would be cleaned.");
 
   const { url: result, changes } = cleanUrlTraced(url, toRun);
   return { status: "ok", url: result, segments: highlightSegments(result, url), changes: mergeStrayRemovals(changes), notes };

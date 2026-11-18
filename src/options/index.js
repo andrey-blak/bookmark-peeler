@@ -26,6 +26,7 @@ import { createEditor } from "./editor.js";
 import { exportFile, parseImport, summarizeImport, mergeImport } from "./transfer.js";
 import { PRESETS, presetDraft } from "./presets.js";
 import { createSettings } from "./settings.js";
+import { validSites } from "../core/exclusions.js";
 import { createBulkClean } from "./bulk-dialog.js";
 import { store, migrator } from "../storage/default.js";
 import { StoreError } from "../storage/store.js";
@@ -62,6 +63,7 @@ const editor = createEditor($("editor"), {
   onDuplicate: duplicateRule,
   onCancel: closeNewRule,
   getRules: () => (config ? config.rules : []),
+  getExcludedSites: () => (config ? config.settings.excludedSites : []),
 });
 
 // --- Settings panel and bulk clean ---
@@ -69,6 +71,7 @@ const editor = createEditor($("editor"), {
 const bulk = createBulkClean({
   dialog: $("bulk-dialog"),
   getRules: () => (config ? config.rules : []),
+  getExcludedSites: () => (config ? config.settings.excludedSites : []),
   notify: text => showMessage(text),
   notifyUndo: (text, restore) => showUndo(text, restore),
   onChange: () => updateSettings(),
@@ -76,6 +79,7 @@ const bulk = createBulkClean({
 
 const settings = createSettings($("settings"), {
   onCleanOnEdit: checked => setCleanOnEdit(checked),
+  onExcludedSites: sites => setExcludedSites(sites),
   onClean: () => bulk.start(),
   onRestore: () => bulk.restoreLast(),
 });
@@ -103,7 +107,23 @@ function updatePanes() {
 }
 
 function updateSettings() {
-  settings.update({ cleanOnEdit: config ? config.settings.cleanOnEdit : false, restorable: bulk.restorable });
+  settings.update({
+    cleanOnEdit: config ? config.settings.cleanOnEdit : false,
+    excludedSites: config ? config.settings.excludedSites : [],
+    restorable: bulk.restorable,
+  });
+}
+
+/**
+ * Stores the list of excluded sites when the text box is left, without the entries that are not a plain domain.
+ * Nothing is written when the list did not change.
+ */
+async function setExcludedSites(typed) {
+  const sites = validSites(typed);
+  if (!config || JSON.stringify(sites) === JSON.stringify(config.settings.excludedSites)) return;
+
+  const saved = await saveConfig({ ...config, settings: { ...config.settings, excludedSites: sites } });
+  if (!saved) updateSettings(); // put the text back
 }
 
 async function setCleanOnEdit(checked) {

@@ -906,3 +906,25 @@ dialog .lines li {
 .editor textarea.invalid {
   outline: 1px solid var(--danger);
 }
+
+/* Excluded sites in the settings */
+
+.settings-section + .settings-section {
+  margin-top: 24px;
+}
+
+.settings-section textarea {
+  width: 100%;
+}
+
+.site-messages {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--danger);
+  font-size: 0.85em;
+}
+
+.site-messages:empty {
+  display: none;
+}

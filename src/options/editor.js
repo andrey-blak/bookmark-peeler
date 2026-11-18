@@ -38,8 +38,9 @@ const clone = value => structuredClone(value);
  * @param handlers.onDuplicate called when the user presses Duplicate
  * @param handlers.onCancel called when the user presses Cancel, which a new rule has
  * @param handlers.getRules returns the stored rules, for the "All rules" mode of the tester
+ * @param handlers.getExcludedSites returns the list of excluded sites, which the tester takes into account
  */
-export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, getRules }) {
+export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, getRules, getExcludedSites }) {
   let draft = null;
   let baseline = null;
   let isNew = false;
@@ -244,7 +245,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const result = root.querySelector(".tester .result");
     if (draft === null || !result) return;
 
-    const outcome = testRules(tester.url, { draft, rules: getRules(), mode: tester.mode });
+    const outcome = testRules(tester.url, { draft, rules: getRules(), mode: tester.mode, excludedSites: getExcludedSites() });
     const changes = root.querySelector(".tester details.changes");
     const note = text => el("p", { className: "note" }, text);
 
