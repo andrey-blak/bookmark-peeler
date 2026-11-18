@@ -484,6 +484,9 @@ async function toggleRules(ids, enabled) {
     const checkbox = item?.querySelector('input[type="checkbox"]');
     if (checkbox) checkbox.checked = enabled;
   }
+
+  // Try it in "All rules" mode depends on which rules are switched on.
+  editor.refreshTester();
 }
 
 async function deleteRules(ids) {

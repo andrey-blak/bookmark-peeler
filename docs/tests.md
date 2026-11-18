@@ -134,6 +134,7 @@ If the page looks unstyled or shows an old version after a change, reload the ad
 6. Open another rule in the list: the URL you typed is still in the URL field, and the result is for that rule. Choose "Current rule", then reload the page: the "Current rule" choice is kept.
 7. Notes: test `https://example.net/new?visibility=public` with the Example rule: "This rule doesn't apply to this URL: the domain doesn't match." Give the rule a path `/settings` and test the Example URL: "...the path doesn't match." Put an invalid regex in a pattern: "This rule has errors, so it isn't applied." Switch the rule off in the list and use "All rules": "This rule is switched off in the list, so it isn't applied."
 8. A URL that is not http or https (`example.com/new`, `ftp://...`) shows "Enter a full URL starting with http:// or https://." A URL with no matching parameters shows the URL and "No changes."
+9. With "All rules" selected, switch the open rule off with its switch in the list: "This rule is switched off in the list, so it isn't applied." appears at once, and the result shows the URL unchanged. Switch it on: the note disappears and the result shows the rule's changes, without reopening the rule or touching the URL field.
 
 ### Main page: the collapsible rule list
 
