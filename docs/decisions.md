@@ -39,6 +39,7 @@ The decisions behind the add-on.
 - It covers all bookmarks, with a preview of what would change before anything is written.
 - The writes are done by the background page, so that they are recorded as the add-on's own and not mistaken for edits by the user.
 - Undo works only while the page is open, and skips bookmarks edited since.
+- The Undo message stays for the number of seconds in the setting `undoSeconds` (8 by default, 1 to 60). A value outside the range is not saved.
 
 ## The main page
 

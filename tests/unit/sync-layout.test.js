@@ -19,7 +19,7 @@ describe("toItems", () => {
     const items = toItems(config([rule("a"), rule("b")], { cleanOnEdit: true }));
     assert.deepEqual(Object.keys(items).sort(), ["order", "rule:a", "rule:b", "schemaVersion", "settings"]);
     assert.equal(items.schemaVersion, 1);
-    assert.deepEqual(items.settings, { cleanOnEdit: true, excludedSites: [] });
+    assert.deepEqual(items.settings, { cleanOnEdit: true, excludedSites: [], undoSeconds: 8 });
     assert.deepEqual(items.order, ["a", "b"]);
     assert.deepEqual(items["rule:b"], rule("b"));
   });

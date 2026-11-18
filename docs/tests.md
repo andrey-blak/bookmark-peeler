@@ -299,3 +299,12 @@ Have a rule for all sites that removes `utm_*`, and bookmarks on `example.com`, 
 7. Blank lines and spaces around a domain are ignored, and do not make Save active on their own.
 8. Type `*.example.com`, `example.com/path` or `example.com:8080` on a line: a red message under the text box names the entry and says what is wrong ("Wildcards aren't supported. Subdomains are included automatically." for the wildcard, "Enter just the domain, without a path, port or spaces." for the others), the text box is outlined, and the rule has the error mark in the list and is not applied: with Try it, the note says the rule has errors. Fix the line and the message goes away.
 9. Duplicate the rule: the copy has the same excluded sites. Export the rules and import the file: the excluded sites of the rule are there.
+
+### Undo time
+
+1. The Settings panel, in "Bookmarks" under the checkbox, has a number box between the words "Show Undo for" and "seconds", with 8 in it.
+2. Delete a rule: the Undo message goes away after about 8 seconds.
+3. Type `3` and click outside the box. Delete a rule: the message goes away after about 3 seconds. Reload the page: the box has 3. In the console, `await browser.storage.sync.get("settings")` shows `undoSeconds: 3`.
+4. Type `0`, `61`, `2.5`, `abc` or nothing, and click outside the box: the box goes back to the last saved number, and nothing is stored.
+5. `1` and `60` are accepted.
+6. The time applies to the Undo message of an import and of "Clean existing bookmarks…" too.

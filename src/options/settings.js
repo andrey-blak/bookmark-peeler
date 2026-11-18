@@ -3,16 +3,26 @@
 
 import { el } from "./dom.js";
 import { siteIssues, parseSites, sitesText } from "../core/exclusions.js";
+import { UNDO_SECONDS_MIN, UNDO_SECONDS_MAX, validUndoSeconds } from "../core/schema.js";
 
 /**
  * @param root the element the panel lives in
  * @param handlers.onCleanOnEdit (checked) the checkbox was changed
+ * @param handlers.onUndoSeconds (seconds) the number box was left with a valid whole number
  * @param handlers.onExcludedSites (sites) the text box of excluded sites was left, with the list in it
  * @param handlers.onClean "Clean existing bookmarks…" was pressed
  * @param handlers.onRestore "Restore the last cleaned bookmarks" was pressed
  */
-export function createSettings(root, { onCleanOnEdit, onExcludedSites, onClean, onRestore }) {
+export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedSites, onClean, onRestore }) {
   const checkbox = el("input", { type: "checkbox", dataset: { cleanOnEdit: "" } });
+  const seconds = el("input", {
+    type: "number",
+    min: UNDO_SECONDS_MIN,
+    max: UNDO_SECONDS_MAX,
+    step: 1,
+    className: "seconds",
+    dataset: { undoSeconds: "" },
+  });
   const restoreRow = el("div", { className: "setting-row", hidden: true },
     el("button", { type: "button", textContent: "Restore the last cleaned bookmarks", dataset: { restore: "" } }),
     el("span", { className: "hint", id: "restore-hint" }));
@@ -41,6 +51,10 @@ export function createSettings(root, { onCleanOnEdit, onExcludedSites, onClean, 
         el("span", {},
           "Also clean a bookmark when its URL is edited",
           el("span", { className: "hint block" }, "Off: only new bookmarks are cleaned."))),
+      el("label", { className: "setting-row" },
+        "Show Undo for",
+        seconds,
+        "seconds"),
       el("div", { className: "setting-row" },
         el("button", { type: "button", textContent: "Clean existing bookmarks…", dataset: { clean: "" } }),
         el("span", { className: "hint" }, "Applies your enabled rules to the bookmarks you already have.")),
@@ -58,17 +72,31 @@ export function createSettings(root, { onCleanOnEdit, onExcludedSites, onClean, 
 
   checkbox.addEventListener("change", () => onCleanOnEdit(checkbox.checked));
 
+  // A number that is not a whole number of seconds within the limits is not stored, and the box goes back to the stored one.
+  seconds.addEventListener("change", () => {
+    const value = seconds.value.trim() === "" ? NaN : Number(seconds.value);
+    if (validUndoSeconds(value)) {
+      shownSeconds = String(value);
+      onUndoSeconds(value);
+    }
+    else seconds.value = shownSeconds;
+  });
+
   // The messages follow what is typed; the list is stored when the text box is left.
   sites.addEventListener("input", () => showSiteMessages(parseSites(sites.value)));
   sites.addEventListener("change", () => onExcludedSites(parseSites(sites.value)));
+
+  let shownSeconds = "";
 
   return {
     /**
      * Shows the current state: the settings, and how many bookmarks "Restore" would put back (0 hides the button).
      * The text box is not touched while it has the focus, so what is being typed is not replaced.
      */
-    update({ cleanOnEdit, excludedSites, restorable }) {
+    update({ cleanOnEdit, undoSeconds, excludedSites, restorable }) {
       checkbox.checked = cleanOnEdit;
+      shownSeconds = String(undoSeconds);
+      if (document.activeElement !== seconds) seconds.value = shownSeconds;
       if (document.activeElement !== sites) sites.value = sitesText(excludedSites);
       showSiteMessages(excludedSites);
       restoreRow.hidden = restorable === 0;

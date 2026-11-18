@@ -1,7 +1,7 @@
 // Main page: the rule list and the rule editor.
 // The logic is in rule-list.js and editor-model.js (unit-tested); this file connects it to the DOM and to storage.
 
-import { readConfig, validateRule } from "../core/schema.js";
+import { readConfig, validateRule, UNDO_SECONDS_DEFAULT } from "../core/schema.js";
 import {
   moveRule,
   moveRules,
@@ -32,7 +32,6 @@ import { store, migrator } from "../storage/default.js";
 import { StoreError } from "../storage/store.js";
 import { getPref, setPref } from "./prefs.js";
 
-const UNDO_MS = 8000;
 const MESSAGE_MS = 6000;
 const MESSAGE_NAME_MAX = 40; // characters of a rule's name shown in a message
 
@@ -79,6 +78,7 @@ const bulk = createBulkClean({
 
 const settings = createSettings($("settings"), {
   onCleanOnEdit: checked => setCleanOnEdit(checked),
+  onUndoSeconds: seconds => setUndoSeconds(seconds),
   onExcludedSites: sites => setExcludedSites(sites),
   onClean: () => bulk.start(),
   onRestore: () => bulk.restoreLast(),
@@ -109,6 +109,7 @@ function updatePanes() {
 function updateSettings() {
   settings.update({
     cleanOnEdit: config ? config.settings.cleanOnEdit : false,
+    undoSeconds: config ? config.settings.undoSeconds : UNDO_SECONDS_DEFAULT,
     excludedSites: config ? config.settings.excludedSites : [],
     restorable: bulk.restorable,
   });
@@ -124,6 +125,13 @@ async function setExcludedSites(typed) {
 
   const saved = await saveConfig({ ...config, settings: { ...config.settings, excludedSites: sites } });
   if (!saved) updateSettings(); // put the text back
+}
+
+async function setUndoSeconds(seconds) {
+  if (!config || seconds === config.settings.undoSeconds) return;
+
+  const saved = await saveConfig({ ...config, settings: { ...config.settings, undoSeconds: seconds } }, { rerender: false });
+  if (!saved) updateSettings(); // put the number back
 }
 
 async function setCleanOnEdit(checked) {
@@ -588,7 +596,7 @@ function showToast(text, { restore = null, ms = MESSAGE_MS } = {}) {
 }
 
 const showMessage = text => showToast(text);
-const showUndo = (text, restore) => showToast(text, { restore, ms: UNDO_MS });
+const showUndo = (text, restore) => showToast(text, { restore, ms: (config ? config.settings.undoSeconds : UNDO_SECONDS_DEFAULT) * 1000 });
 
 function hideToast() {
   clearTimeout(toastTimer);

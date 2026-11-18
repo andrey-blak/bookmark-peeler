@@ -779,6 +779,12 @@ dialog .lines li {
   margin: 0;
 }
 
+.setting-row input.seconds {
+  width: 5em;
+  padding: 2px 4px;
+  font: inherit;
+}
+
 .hint.block {
   display: block;
 }

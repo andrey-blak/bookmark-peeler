@@ -13,10 +13,19 @@ export const SCHEMA_VERSION = 1;
 /** The longest a rule's name can be, in characters. Longer names are cut when a rule is normalised. */
 export const NAME_MAX = 64;
 
+/** How long the Undo message stays, in seconds: the default and the limits of the setting. */
+export const UNDO_SECONDS_DEFAULT = 8;
+export const UNDO_SECONDS_MIN = 1;
+export const UNDO_SECONDS_MAX = 60;
+
+/** Whether a value can be the number of seconds Undo stays: a whole number within the limits. */
+export const validUndoSeconds = value =>
+  Number.isInteger(value) && value >= UNDO_SECONDS_MIN && value <= UNDO_SECONDS_MAX;
+
 export function defaultConfig() {
   return {
     schemaVersion: SCHEMA_VERSION,
-    settings: { cleanOnEdit: false, excludedSites: [] },
+    settings: { cleanOnEdit: false, excludedSites: [], undoSeconds: UNDO_SECONDS_DEFAULT },
     rules: [],
   };
 }
@@ -124,6 +133,7 @@ export function normalizeConfig(raw) {
     schemaVersion: SCHEMA_VERSION,
     settings: {
       cleanOnEdit: source.settings?.cleanOnEdit === true,
+      undoSeconds: validUndoSeconds(source.settings?.undoSeconds) ? source.settings.undoSeconds : UNDO_SECONDS_DEFAULT,
       // Trimmed. An entry that is not a plain domain is dropped.
       excludedSites: (Array.isArray(source.settings?.excludedSites) ? source.settings.excludedSites : [])
         .filter(isText)

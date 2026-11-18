@@ -27,6 +27,7 @@ The rest of this page describes a config, `{ schemaVersion, settings, rules }`: 
 |---|---|---|---|
 | `cleanOnEdit` | boolean | `false` | Also clean a bookmark when its URL is edited, not only when it is created. |
 | `excludedSites` | array of string | `[]` | Domains where the add-on does nothing. An entry is a plain domain name, written like a rule's domain (no path, port, `*` or spaces), and covers its subdomains. Entries are trimmed and blank ones are dropped. An entry that is not a plain domain is dropped when the settings are read, and the Settings page leaves it out when it saves the list. |
+| `undoSeconds` | integer | `8` | How long the Undo message stays on the main page, in seconds. A whole number from 1 to 60; anything else reads as `8`. |
 
 ## Rule
 

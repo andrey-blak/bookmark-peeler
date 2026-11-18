@@ -76,7 +76,7 @@ describe("mergeConfigs", () => {
   });
 
   test("the settings are the synced ones", () => {
-    assert.deepEqual(mergeConfigs(local, sync).settings, { cleanOnEdit: false, excludedSites: [] });
+    assert.deepEqual(mergeConfigs(local, sync).settings, { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 });
   });
 
   test("keeps the schema version and does not modify its inputs", () => {

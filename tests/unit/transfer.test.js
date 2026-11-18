@@ -72,7 +72,7 @@ describe("parseImport", () => {
     assert.equal("extra" in parsed, false);
     assert.equal("extra" in parsed.rules[0], false);
     assert.equal(typeof parsed.rules[0].id, "string");
-    assert.deepEqual(parsed.settings, { cleanOnEdit: false, excludedSites: [] });
+    assert.deepEqual(parsed.settings, { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 });
   });
 
   test("rules with errors are kept so they can be fixed", () => {

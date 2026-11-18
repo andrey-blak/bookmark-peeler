@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import {
   SCHEMA_VERSION,
   NAME_MAX,
+  UNDO_SECONDS_MIN,
+  UNDO_SECONDS_MAX,
+  UNDO_SECONDS_DEFAULT,
   defaultConfig,
   normalizeRule,
   normalizeConfig,
@@ -36,7 +39,7 @@ describe("defaultConfig", () => {
   test("is an empty, versioned config with cleanOnEdit off", () => {
     assert.deepEqual(defaultConfig(), {
       schemaVersion: SCHEMA_VERSION,
-      settings: { cleanOnEdit: false, excludedSites: [] },
+      settings: { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 },
       rules: [],
     });
   });
@@ -203,13 +206,13 @@ describe("normalizeConfig", () => {
   });
 
   test("keeps good settings and rules", () => {
-    const config = { schemaVersion: SCHEMA_VERSION, settings: { cleanOnEdit: true, excludedSites: [] }, rules: [goodRule()] };
+    const config = { schemaVersion: SCHEMA_VERSION, settings: { cleanOnEdit: true, excludedSites: [], undoSeconds: 8 }, rules: [goodRule()] };
     assert.deepEqual(normalizeConfig(config), config);
   });
 
   test("settings default to off and unknown settings are dropped", () => {
-    assert.deepEqual(normalizeConfig({ settings: { cleanOnEdit: "yes", other: 1 } }).settings, { cleanOnEdit: false, excludedSites: [] });
-    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false, excludedSites: [] });
+    assert.deepEqual(normalizeConfig({ settings: { cleanOnEdit: "yes", other: 1 } }).settings, { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 });
+    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 });
   });
 
   test("rules that are not objects are dropped, and a missing list is empty", () => {
@@ -244,7 +247,7 @@ describe("readConfig", () => {
   });
 
   test("reads a stored config", () => {
-    const stored = { schemaVersion: 1, settings: { cleanOnEdit: true, excludedSites: [] }, rules: [goodRule()] };
+    const stored = { schemaVersion: 1, settings: { cleanOnEdit: true, excludedSites: [], undoSeconds: 8 }, rules: [goodRule()] };
     assert.deepEqual(readConfig(stored), { status: "ok", config: stored });
   });
 
@@ -419,8 +422,8 @@ describe("usableRules", () => {
 
 describe("the settings: excluded sites", () => {
   test("the default is an empty list, next to cleanOnEdit", () => {
-    assert.deepEqual(defaultConfig().settings, { cleanOnEdit: false, excludedSites: [] });
-    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false, excludedSites: [] });
+    assert.deepEqual(defaultConfig().settings, { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 });
+    assert.deepEqual(normalizeConfig({}).settings, { cleanOnEdit: false, excludedSites: [], undoSeconds: 8 });
   });
 
   test("the list is kept, trimmed, without blank entries", () => {
@@ -441,7 +444,7 @@ describe("the settings: excluded sites", () => {
 
   test("reads back from storage with the list", () => {
     const stored = { schemaVersion: 1, settings: { cleanOnEdit: true, excludedSites: ["example.com"] }, rules: [] };
-    assert.deepEqual(readConfig(stored).config.settings, { cleanOnEdit: true, excludedSites: ["example.com"] });
+    assert.deepEqual(readConfig(stored).config.settings, { cleanOnEdit: true, excludedSites: ["example.com"], undoSeconds: 8 });
   });
 
   test("normalising again changes nothing", () => {
@@ -512,5 +515,28 @@ describe("scope exceptions in rules", () => {
     const bad = { id: "bad", ...withScope({ type: "all", except: ["*"] }) };
     const good = { id: "good", ...withScope({ type: "all", except: ["example.org"] }) };
     assert.deepEqual(usableRules([bad, good]).map(r => r.id), ["good"]);
+  });
+});
+
+describe("the settings: undo seconds", () => {
+  test("the default is 8 seconds", () => {
+    assert.equal(defaultConfig().settings.undoSeconds, 8);
+    assert.equal(normalizeConfig({}).settings.undoSeconds, 8);
+  });
+
+  test("a whole number from 1 to 60 is kept", () => {
+    for (const value of [1, 8, 15, 60]) {
+      assert.equal(normalizeConfig({ settings: { undoSeconds: value } }).settings.undoSeconds, value, String(value));
+    }
+  });
+
+  test("anything else becomes the default", () => {
+    for (const value of [0, -3, 61, 2.5, "10", null, NaN, Infinity, {}, [5]]) {
+      assert.equal(normalizeConfig({ settings: { undoSeconds: value } }).settings.undoSeconds, 8, String(value));
+    }
+  });
+
+  test("the limits are exported", () => {
+    assert.deepEqual([UNDO_SECONDS_MIN, UNDO_SECONDS_MAX, UNDO_SECONDS_DEFAULT], [1, 60, 8]);
   });
 });
