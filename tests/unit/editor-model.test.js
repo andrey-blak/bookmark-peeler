@@ -12,6 +12,7 @@ import {
   addAction,
   moveAction,
   remapTouched,
+  remapTouchedAfterRemove,
   actionDropIndex,
   visibleIssues,
   summaryText,
@@ -225,6 +226,71 @@ describe("visibleIssues", () => {
 
   test("showAll shows everything, for example after Save", () => {
     assert.equal(shown([], true).length, 5);
+  });
+});
+
+describe("visibleIssues: a touched key ending in .* reveals everything inside it", () => {
+  const issues = [
+    { path: ["scope", "host"], severity: "error", message: "Enter a domain." },
+    { path: ["actions"], severity: "warning", message: "No actions." },
+    { path: ["actions", 0], severity: "error", message: "Enter a pattern." },
+    { path: ["actions", 0, "parameter"], severity: "error", message: "Enter a parameter name." },
+    { path: ["actions", 1, "parameters"], severity: "error", message: "Enter at least one parameter." },
+    { path: ["actions", 10, "parameter"], severity: "error", message: "Enter a parameter name." },
+  ];
+  const shown = touched => paths(visibleIssues(issues, new Set(touched)));
+
+  test("shows the issue of the action and of everything inside it", () => {
+    assert.deepEqual(shown(["actions.0.*"]), ["actions.0", "actions.0.parameter"]);
+  });
+
+  test("does not show other actions, the list of actions, or other parts of the rule", () => {
+    assert.deepEqual(shown(["actions.1.*"]), ["actions.1.parameters"]);
+  });
+
+  test("actions.1.* does not reach actions.10", () => {
+    assert.equal(shown(["actions.1.*"]).includes("actions.10.parameter"), false);
+  });
+
+  test("it can be combined with fields that were touched", () => {
+    assert.deepEqual(shown(["actions.0.*", "scope.host"]), ["scope.host", "actions.0", "actions.0.parameter"]);
+  });
+});
+
+describe("remapTouched keeps .* keys with their action", () => {
+  test("a moved action takes its reveal with it, and the actions it passes shift", () => {
+    const result = remapTouched(new Set(["actions.0.*", "actions.1.*"]), 0, 1);
+    assert.deepEqual([...result].sort(), ["actions.0.*", "actions.1.*"]);
+    assert.equal(result.has("actions.1.*"), true);
+  });
+
+  test("only the moved action's key changes when the others are outside the range", () => {
+    const result = remapTouched(new Set(["actions.0.*", "actions.3.*"]), 0, 2);
+    assert.deepEqual([...result].sort(), ["actions.2.*", "actions.3.*"]);
+  });
+});
+
+describe("remapTouchedAfterRemove", () => {
+  const sorted = set => [...set].sort();
+
+  test("drops what belongs to the removed action and shifts the actions after it", () => {
+    const touched = new Set(["actions.0.parameter", "actions.1.parameters", "actions.2.*", "actions.3.value.find"]);
+    assert.deepEqual(sorted(remapTouchedAfterRemove(touched, 1)), ["actions.0.parameter", "actions.1.*", "actions.2.value.find"]);
+  });
+
+  test("keys that are not about an action, and the list itself, stay", () => {
+    const touched = new Set(["name", "scope.host", "actions", "actions.0.parameter"]);
+    assert.deepEqual(sorted(remapTouchedAfterRemove(touched, 0)), ["actions", "name", "scope.host"]);
+  });
+
+  test("removing the last action changes nothing before it", () => {
+    assert.deepEqual(sorted(remapTouchedAfterRemove(new Set(["actions.0.parameter", "actions.1.parameter"]), 1)), ["actions.0.parameter"]);
+  });
+
+  test("does not modify the set it is given", () => {
+    const original = new Set(["actions.1.parameter"]);
+    remapTouchedAfterRemove(original, 0);
+    assert.deepEqual(sorted(original), ["actions.1.parameter"]);
   });
 });
 

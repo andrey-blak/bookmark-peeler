@@ -12,6 +12,7 @@ import {
   addAction,
   moveAction,
   remapTouched,
+  remapTouchedAfterRemove,
   actionDropIndex,
   visibleIssues,
   summaryText,
@@ -43,7 +44,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   let baseline = null;
   let isNew = false;
   let touched = new Set(); // keys of the fields the user has changed; issues are shown only for these
-  let showAll = false; // after Save every issue is shown
+  let showAll = false; // after Save, or once a URL is in Try it, every issue is shown, and it stays shown
   let justSaved = false;
   let placeholder = DEFAULT_PLACEHOLDER; // what the empty editor says
 
@@ -401,7 +402,10 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
     if (field.dataset.testUrl !== undefined) {
       tester.url = field.value;
-      refreshTester();
+      // With a URL in Try it every message shows, so the note "This rule has errors" has something to point at.
+      // An error that has been shown stays while the rule is invalid, so clearing the URL does not hide it again.
+      if (field.value.trim() !== "") showAll = true;
+      refreshFeedback();
       return;
     }
 
@@ -425,6 +429,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       if (field.value === "") return;
       draft = addAction(draft, field.value);
       touched.add("actions");
+      // The actions above the new one are done with, so their messages show.
+      for (let i = 0; i < draft.actions.length - 1; i++) touched.add(`actions.${i}.*`);
       changed();
       const index = draft.actions.length - 1;
       const first = { remove: "parameter", replace: "parameter.find", keep: "parameters" }[field.value];
@@ -453,8 +459,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const remove = event.target.closest("[data-remove-action]");
     if (remove) {
       draft = unsetIn(draft, ["actions", Number(remove.dataset.removeAction)]);
-      // The fields of the actions after this one have moved, so what was touched there no longer applies.
-      touched = new Set([...touched].filter(key => !key.startsWith("actions.")));
+      // What was touched in the actions after this one moves with them.
+      touched = remapTouchedAfterRemove(touched, Number(remove.dataset.removeAction));
       touched.add("actions");
       changed();
       redraw("select[data-add-action]");
@@ -594,7 +600,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   function revert() {
     draft = clone(baseline);
     touched = new Set();
-    showAll = !isNew;
+    showAll = !isNew || tester.url.trim() !== "";
     justSaved = false;
     onChange();
     redraw();
@@ -610,7 +616,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       isNew = opened;
       touched = new Set();
       // A stored rule shows all its errors and warnings at once; a new one only after the user has typed.
-      showAll = !opened;
+      showAll = !opened || tester.url.trim() !== "";
       justSaved = false;
       draw();
       onChange();

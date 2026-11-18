@@ -114,6 +114,28 @@ export function remapTouched(touched, from, to) {
 }
 
 /**
+ * The set of touched fields after the action at `index` was removed: what belongs to it is dropped,
+ * and the actions after it shift down by one, so messages stay with their action.
+ */
+export function remapTouchedAfterRemove(touched, index) {
+  const result = new Set();
+
+  for (const key of touched) {
+    const match = /^actions\.(\d+)(.*)$/.exec(key);
+    if (!match) {
+      result.add(key);
+      continue;
+    }
+
+    const position = Number(match[1]);
+    if (position === index) continue;
+    result.add(`actions.${position > index ? position - 1 : position}${match[2]}`);
+  }
+
+  return result;
+}
+
+/**
  * The position to give moveAction when the action at `from` is dropped on the action at `over`,
  * on its lower half (`after`) or upper half.
  */
@@ -128,13 +150,21 @@ export function actionDropIndex(from, over, after) {
  * The issues that may be shown now: those of fields the user has touched, or all of them when `showAll`.
  * An issue belongs to a touched field when its path is that field's path or a parent of it,
  * so typing in a field of an action also shows the issue of the whole action.
+ * A touched key that ends in ".*", such as "actions.0.*", reveals everything inside that path.
  */
 export function visibleIssues(issues, touched, showAll = false) {
   if (showAll) return issues;
 
   return issues.filter(issue => {
     const key = pathKey(issue.path);
-    return [...touched].some(field => field === key || field.startsWith(key + "."));
+
+    return [...touched].some(field => {
+      if (field.endsWith(".*")) {
+        const base = field.slice(0, -2);
+        return key === base || key.startsWith(base + ".");
+      }
+      return field === key || field.startsWith(key + ".");
+    });
   });
 }
 

@@ -100,7 +100,7 @@ The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down m
 
 Start with the rules from the previous section, or an empty list.
 
-1. Add rule: the editor opens with an empty Name, Scope "Domain" and an empty Domain showing the `example.com` placeholder. The list gets an italic "New rule" row. No error or warning is visible yet.
+1. Add rule: the editor opens with an empty Name, Scope "Domain" and an empty Domain showing the `example.com` placeholder. The list gets an italic "New rule" row. No error or warning is visible yet, as long as the Try it URL field is empty.
 2. Type `example.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter", "Replace in parameter or value" and "Keep only these parameters", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
 3. Fill in Parameter `^visibility$`, leave "Replace with" unticked there, Value `^public$`, and in the Value replacement `private`. Then type `(` in the Value pattern: a red message about the regular expression appears under it, the field is outlined, and the line next to Save says "1 error. The rule isn't applied until the error is fixed." Fix the pattern.
 4. Untick "Replace with" on the Value line: a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
@@ -251,3 +251,11 @@ Open a rule and add the action from the Add action menu. Put `https://example.co
 6. A URL with a stray `&&` (for example `https://example.com/p?a=1&&b=2` with `a` and `b` listed): the result is `https://example.com/p?a=1&b=2`.
 7. Put the keep action first and a Replace action after it: the replace only works on the parameters that were kept. Move the cards with ↑ and ↓: the result changes with the order. Save, reload the page and open the rule: the list is as you typed it, without blank lines.
 8. With the rule saved, bookmark `https://example.com/video?v=Hn4xT9sBq2L&si=abc&feature=share` for the domain: the bookmark keeps only `v`. "Clean existing bookmarks" previews the same change.
+
+### Error messages of a new rule
+
+Clear the Try it URL field (reload the page) and open a new rule with Add rule.
+
+1. Add a Remove action and leave the parameter empty. It shows no error messages. Add a Replace aciton and leave it empty. Adding an action reveals the errors of the action above it, "Enter a parameter name.". Add a Keep action and type `v` in it. Now Remove action has error "Enter a pattern for the parameter or the value.".
+2. Start with a fresh new rule and add one empty Remove action. Put `https://example.com/video?v=Hn4xT9sBq2L&si=abc` in "Try it": every message in the rule shows at once, including the empty Domain ("Enter a domain.") and the empty Remove card, and the note "This rule has errors, so it isn't applied." now has red messages to point at. The line next to Save counts the errors.
+3. Clear the URL: the messages stay. Then open another new rule with Add rule: its messages are hidden again. Fill in the Try it URL, then open another new rule with Add rule (the URL stays): its messages show at once, including those of an empty action you add. Clearing the URL in that rule does not hide them.
