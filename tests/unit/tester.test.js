@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { testRules, describeChange, highlightSegments } from "../../src/options/tester.js";
+import { testRules, describeChange, highlightSegments, mergeStrayRemovals } from "../../src/options/tester.js";
 
 const EXAMPLE_URL = "https://example.com/new?owner=me&visibility=public&utm_source=x";
 
@@ -234,5 +234,92 @@ describe("highlightSegments", () => {
       { text: "a=2", changed: true },
       { text: "#top", changed: false },
     ]);
+  });
+});
+
+describe("stray & signs in what changed", () => {
+  const keepAB = (extra = {}) => ({
+    id: "k",
+    enabled: true,
+    name: "Keep",
+    scope: { type: "all" },
+    actions: [{ type: "keep", parameters: ["a", "b"] }],
+    ...extra,
+  });
+  const removeAll = { id: "all", enabled: true, name: "Remove all", scope: { type: "all" }, actions: [{ type: "remove", parameter: "*" }] };
+  const lines = result => result.changes.map(c => describeChange(c).text);
+
+  test("describeChange shows a removed empty part as &", () => {
+    assert.deepEqual(
+      describeChange({ kind: "removed", before: { name: "", value: null }, after: null }),
+      { kind: "removed", text: "&" },
+    );
+  });
+
+  test("a removed part with a value but no name is still shown as it is", () => {
+    assert.equal(describeChange({ kind: "removed", before: { name: "", value: "x" }, after: null }).text, "=x");
+  });
+
+  test("all the empty parts removed from a URL are one line, however many there are", () => {
+    const result = testRules("https://example.com/p?a=1&&b=2&&&&&", { draft: keepAB(), rules: [], mode: "current" });
+    assert.equal(result.url, "https://example.com/p?a=1&b=2");
+    assert.deepEqual(lines(result), ["&"]);
+    assert.equal(result.changes.length, 1);
+  });
+
+  test("with a single stray & it is the same line", () => {
+    const result = testRules("https://example.com/p?a=1&&b=2", { draft: keepAB(), rules: [], mode: "current" });
+    assert.deepEqual(lines(result), ["&"]);
+  });
+
+  test("Remove with * gives the same line for the empty parts, next to the parameters it removed", () => {
+    const result = testRules("https://example.com/p?a=1&&b=2&&", { draft: removeAll, rules: [], mode: "current" });
+    assert.deepEqual(lines(result), ["a=1", "&", "b=2"]);
+  });
+
+  test("the line is at the place of the first empty part", () => {
+    const result = testRules("https://example.com/p?&&a=1&c=3&&b=2", { draft: keepAB(), rules: [], mode: "current" });
+    assert.deepEqual(lines(result), ["&", "c=3"]);
+  });
+
+  test("a part with a value but no name is its own line", () => {
+    const result = testRules("https://example.com/p?=x&a=1&&b=2", { draft: keepAB(), rules: [], mode: "current" });
+    assert.deepEqual(lines(result), ["=x", "&"]);
+  });
+
+  test("the line names the rule in All rules mode, like the others", () => {
+    const result = testRules("https://example.com/p?a=1&&b=2", { draft: keepAB(), rules: [keepAB()], mode: "all" });
+    assert.deepEqual(result.changes.map(c => c.ruleId), ["k"]);
+  });
+
+  test("no stray parts, no such line", () => {
+    const result = testRules("https://example.com/p?a=1&c=3", { draft: keepAB(), rules: [], mode: "current" });
+    assert.deepEqual(lines(result), ["c=3"]);
+  });
+});
+
+describe("mergeStrayRemovals", () => {
+  const stray = ruleId => ({ kind: "removed", ruleId, before: { name: "", value: null }, after: null });
+  const named = (name, ruleId = "r") => ({ kind: "removed", ruleId, before: { name, value: "1" }, after: null });
+
+  test("keeps one stray removal for each rule, at the place of the first", () => {
+    const merged = mergeStrayRemovals([named("a"), stray("r"), named("b"), stray("r"), stray("r")]);
+    assert.deepEqual(merged.map(c => c.before.name), ["a", "", "b"]);
+  });
+
+  test("strays removed by different rules stay one line each", () => {
+    const merged = mergeStrayRemovals([stray("one"), named("a"), stray("two")]);
+    assert.deepEqual(merged.map(c => c.ruleId), ["one", "r", "two"]);
+  });
+
+  test("changes that are not stray removals are all kept as they are", () => {
+    const changes = [named("a"), { kind: "changed", ruleId: "r", before: { name: "x", value: "1" }, after: { name: "x", value: "2" } }];
+    assert.deepEqual(mergeStrayRemovals(changes), changes);
+  });
+
+  test("does not modify its input", () => {
+    const changes = [stray("r"), stray("r")];
+    mergeStrayRemovals(changes);
+    assert.equal(changes.length, 2);
   });
 });

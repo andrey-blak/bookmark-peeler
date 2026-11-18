@@ -51,11 +51,30 @@ export function testRules(input, { draft, rules, mode }) {
   }
 
   const { url: result, changes } = cleanUrlTraced(url, toRun);
-  return { status: "ok", url: result, segments: highlightSegments(result, url), changes, notes };
+  return { status: "ok", url: result, segments: highlightSegments(result, url), changes: mergeStrayRemovals(changes), notes };
+}
+
+const isStray = change => change.kind === "removed" && change.before.name === "" && change.before.value === null;
+
+/**
+ * Shows the empty parts of a query that a rule removed, the stray & signs of a URL like ?a=1&&b=2, as one change.
+ * There is one for each rule that removed some, at the place of the first, however many were removed.
+ */
+export function mergeStrayRemovals(changes) {
+  const seen = new Set();
+
+  return changes.filter(change => {
+    if (!isStray(change)) return true;
+    if (seen.has(change.ruleId)) return false;
+
+    seen.add(change.ruleId);
+    return true;
+  });
 }
 
 const showValue = value => (value === null ? "(no value)" : value);
-const token = ({ name, value }) => (value === null ? name : `${name}=${value}`);
+// An empty part of the query, a stray &, has no name and no value.
+const token = ({ name, value }) => (name === "" && value === null ? "&" : value === null ? name : `${name}=${value}`);
 
 /** One line for a change: { kind, text }. */
 export function describeChange({ kind, before, after }) {

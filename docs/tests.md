@@ -260,3 +260,12 @@ Clear the Try it URL field (reload the page) and open a new rule with Add rule.
 1. Add a Remove action and leave the parameter empty. It shows no error messages. Add a Replace aciton and leave it empty. Adding an action reveals the errors of the action above it, "Enter a parameter name.". Add a Keep action and type `v` in it. Now Remove action has error "Enter a pattern for the parameter or the value.".
 2. Start with a fresh new rule and add one empty Remove action. Put `https://example.com/video?v=Hn4xT9sBq2L&si=abc` in "Try it": every message in the rule shows at once, including the empty Domain ("Enter a domain.") and the empty Remove card, and the note "This rule has errors, so it isn't applied." now has red messages to point at. The line next to Save counts the errors.
 3. Clear the URL: the messages stay. Then open another new rule with Add rule: its messages are hidden again. Fill in the Try it URL, then open another new rule with Add rule (the URL stays): its messages show at once, including those of an empty action you add. Clearing the URL in that rule does not hide them.
+
+### Stray & signs in "What changed"
+
+Use a rule with the action "Keep only these parameters" listing `a` and `b`, and put `https://example.com/p?a=1&&b=2&&&&&` in "Try it" with "Current rule" selected.
+
+1. The result is `https://example.com/p?a=1&b=2`. "What changed (1)" lists one line, `✕ Removed: &`, and no empty lines. The count is 1 whether the URL has one stray `&` or five.
+2. Add `c=3` to the URL: the list has two lines, `✕ Removed: &` and `✕ Removed: c=3`, and the count is 2.
+3. Use a rule with a Remove action with the parameter `*` instead: with `https://example.com/p?a=1&&b=2&&`, the lines are `a=1`, `&` and `b=2`, with `&` where the first stray one was. A Remove with `utm_*` does not list `&`.
+4. With "All rules" selected, the `&` line names the rule that removed it, like the other lines.
