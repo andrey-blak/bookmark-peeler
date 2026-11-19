@@ -4,10 +4,11 @@
 import { flattenBookmarks, planClean, undoChanges, diffSegments } from "./bulk.js";
 import { el } from "./dom.js";
 import { getPref, setPref } from "./prefs.js";
+import { t } from "../core/text.js";
 
 const PAGE = 50; // changes listed at first, and added by each "Show more…"
 
-const count = (n, singular, plural) => `${n.toLocaleString()} ${n === 1 ? singular : plural}`;
+const bookmarks = n => t("bookmarks", { count: n });
 
 // An address with its removed or added parts marked, for the Before and After columns.
 const addressEl = (segments, className) => el("div", { className: "url" },
@@ -58,7 +59,7 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
       shown = Math.min(shown + PAGE, changes.length);
 
       more.hidden = shown >= changes.length;
-      more.textContent = `Show more… (${(changes.length - shown).toLocaleString()} left)`;
+      more.textContent = t("bulk.more", { count: changes.length - shown });
     };
 
     more.onclick = addPage;
@@ -67,11 +68,11 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
 
   /** Scans the bookmarks, shows what would change and, if the user agrees, cleans them. */
   async function start() {
-    $("#bulk-summary").textContent = "Looking at your bookmarks…";
+    $("#bulk-summary").textContent = t("bulk.looking");
     $("#bulk-details").hidden = true;
     $("#bulk-details").open = true; // the list of changes is shown at once
     $("#bulk-clean").hidden = true;
-    $("#bulk-close").textContent = "Cancel";
+    $("#bulk-close").textContent = t("button.cancel");
     dialog.returnValue = "";
 
     const closed = new Promise(resolve => dialog.addEventListener("close", () => resolve(dialog.returnValue), { once: true }));
@@ -82,30 +83,30 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
       plan = planClean(flattenBookmarks(await browser.bookmarks.getTree()), getRules(), getExcludedSites());
     } catch (error) {
       console.error("Bookmark Peeler:", error);
-      $("#bulk-summary").textContent = "Couldn't read your bookmarks.";
-      $("#bulk-close").textContent = "Close";
+      $("#bulk-summary").textContent = t("bulk.read-failed");
+      $("#bulk-close").textContent = t("button.close");
       return;
     }
 
     const { total, changes } = plan;
     if (changes.length === 0) {
-      $("#bulk-summary").textContent = `No bookmark would change (${count(total, "bookmark", "bookmarks")} looked at).`;
-      $("#bulk-close").textContent = "Close";
+      $("#bulk-summary").textContent = t("bulk.none", { bookmarks: bookmarks(total) });
+      $("#bulk-close").textContent = t("button.close");
       return;
     }
 
-    $("#bulk-summary").textContent = `${changes.length.toLocaleString()} of ${count(total, "bookmark", "bookmarks")} would change.`;
-    $("#bulk-details-summary").textContent = `Show the changes (${changes.length.toLocaleString()})`;
+    $("#bulk-summary").textContent = t("bulk.summary", { changes: changes.length, bookmarks: bookmarks(total) });
+    $("#bulk-details-summary").textContent = t("bulk.details", { count: changes.length });
     $("#bulk-details").hidden = false;
     showList(changes);
-    $("#bulk-clean").textContent = `Clean ${count(changes.length, "bookmark", "bookmarks")}`;
+    $("#bulk-clean").textContent = t("bulk.clean", { bookmarks: bookmarks(changes.length) });
     $("#bulk-clean").hidden = false;
 
     if ((await closed) === "clean") await apply(changes);
   }
 
   async function apply(changes) {
-    notify(`Cleaning ${count(changes.length, "bookmark", "bookmarks")}…`);
+    notify(t("bulk.cleaning", { bookmarks: bookmarks(changes.length) }));
 
     let result;
     try {
@@ -113,7 +114,7 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
       result = await setUrls(changes.map(({ id, url, newUrl }) => ({ id, url: newUrl, expect: url })));
     } catch (error) {
       console.error("Bookmark Peeler:", error);
-      notify("Couldn't clean the bookmarks.");
+      notify(t("bulk.clean-failed"));
       return;
     }
 
@@ -121,8 +122,8 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
     onChange();
 
     const left = result.skipped.length + result.failed.length;
-    const text = `Cleaned ${count(result.updated.length, "bookmark", "bookmarks")}`
-      + (left > 0 ? `; ${count(left, "bookmark was", "bookmarks were")} left as they are.` : ".");
+    const updated = bookmarks(result.updated.length);
+    const text = left > 0 ? t("bulk.cleaned-left", { updated, count: left }) : t("bulk.cleaned", { updated });
 
     if (result.updated.length > 0) notifyUndo(text, restoreLast);
     else notify(text);
@@ -138,7 +139,7 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
       result = await setUrls(undoChanges(changes, updated));
     } catch (error) {
       console.error("Bookmark Peeler:", error);
-      notify("Couldn't restore the bookmarks.");
+      notify(t("bulk.restore-failed"));
       return;
     }
 
@@ -146,8 +147,8 @@ export function createBulkClean({ dialog, getRules, getExcludedSites, notify, no
     onChange();
 
     const left = result.skipped.length + result.failed.length;
-    notify(`Restored ${count(result.updated.length, "bookmark", "bookmarks")}`
-      + (left > 0 ? `; ${count(left, "bookmark was", "bookmarks were")} edited since and left as they are.` : "."));
+    const restored = bookmarks(result.updated.length);
+    notify(left > 0 ? t("bulk.restored-left", { updated: restored, count: left }) : t("bulk.restored", { updated: restored }));
   }
 
   return {

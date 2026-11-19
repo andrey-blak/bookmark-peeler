@@ -1,16 +1,17 @@
 // Ready-made rules offered in the Presets menu. Choosing one opens it as a new unsaved rule, to review and save.
 
 import { normalizeRule } from "../core/schema.js";
+import { t } from "../core/text.js";
 
 const remove = parameter => ({ type: "remove", parameter });
 
 export const PRESETS = [
   {
     id: "tracking",
-    title: "Tracking parameters",
-    description: "All sites: utm_*, fbclid, gclid, msclkid …",
+    title: t("preset.tracking.title"),
+    description: t("preset.tracking.description"),
     rule: {
-      name: "Tracking parameters",
+      name: t("preset.tracking.title"),
       scope: { type: "all" },
       actions: [
         "utm_*", "fbclid", "gclid", "dclid", "msclkid", "mc_cid", "mc_eid", "igshid", "yclid", "twclid",
@@ -19,10 +20,10 @@ export const PRESETS = [
   },
   {
     id: "youtube",
-    title: "YouTube share parameters",
-    description: "youtube.com: si, pp, feature",
+    title: t("preset.youtube.title"),
+    description: t("preset.youtube.description"),
     rule: {
-      name: "YouTube share parameters",
+      name: t("preset.youtube.title"),
       scope: { type: "host", host: "youtube.com" },
       actions: ["si", "pp", "feature"].map(remove),
     },

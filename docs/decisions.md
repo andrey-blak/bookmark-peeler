@@ -15,6 +15,11 @@ The decisions behind the add-on.
 - Matching follows the server: parameter names and paths are case-sensitive. The domain is a plain name; wildcards and regular expressions in it are rejected (the Include subdomains option covers subdomains) and can be added later if needed.
 - Rules and their actions run in list order, each seeing the previous result. A rule's actions and patterns work on decoded text, and only the part that changes is re-encoded.
 
+## Texts
+
+- Every text the user can see is in one file, `src/strings.js`.
+- A text is a string or a plural, `{ one, other }`, with `{name}` for the values the code fills in.
+
 ## Storage
 
 - The settings are in `storage.sync` and the rules are in `storage.local`, each with a `schemaVersion`. There is no addon setting for it.

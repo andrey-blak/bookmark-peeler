@@ -4,7 +4,8 @@
 
 ```
 src/            the add-on itself (this folder is what gets packed)
-src/core/       pure logic, no browser APIs: query parsing, scope, actions, engine, schema
+src/core/       pure logic, no browser APIs: query parsing, scope, actions, engine, schema, text.js (t(), which looks up a text)
+src/strings.js  every text the user can see, to edit without touching the code
 src/background/ the background page and its event handlers
 src/storage/    the rules in storage.sync (store.js) and the move from storage.local (migrate.js)
 src/options/    the main page (the manifest calls it options_ui); rule-list.js, editor-model.js, tester.js, selection.js, transfer.js, presets.js and bulk.js are its logic without DOM, the rest is DOM and storage glue

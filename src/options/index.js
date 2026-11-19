@@ -23,6 +23,8 @@ import {
 import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
 import { clickSelection, extendSelection } from "./selection.js";
 import { createEditor } from "./editor.js";
+import { t } from "../core/text.js";
+import { localizePage } from "./localize.js";
 import { exportFile, parseImport, summarizeImport, applyImport } from "./transfer.js";
 import { PRESETS, presetDraft } from "./presets.js";
 import { createSettings } from "./settings.js";
@@ -142,6 +144,8 @@ async function setCleanOnEdit(checked) {
   if (!saved) updateSettings(); // put the checkbox back
 }
 
+localizePage();
+
 // --- Collapsing the list ---
 
 let collapsed = getPref("listCollapsed", false);
@@ -152,8 +156,8 @@ function applyCollapsed() {
   const button = $("collapse");
   button.firstElementChild.className = `icon ${collapsed ? "icon-chevron-right" : "icon-chevron-left"}`;
   button.setAttribute("aria-expanded", String(!collapsed));
-  button.setAttribute("aria-label", collapsed ? "Show the rule list" : "Hide the rule list");
-  button.title = `${collapsed ? "Show" : "Hide"} the rule list ([)`;
+  button.setAttribute("aria-label", t(collapsed ? "list.show" : "list.hide"));
+  button.title = t(collapsed ? "list.show-tip" : "list.hide-tip");
 }
 
 function toggleCollapsed() {
@@ -171,7 +175,7 @@ async function load({ onlyIfChanged = false } = {}) {
     config = null;
     setSelected(null);
     editor.close();
-    showNotice("These rules were saved by a newer version of Bookmark Peeler, so they can't be shown or changed here.");
+    showNotice(t("problem.newer-shown"));
     render();
     return;
   }
@@ -209,9 +213,9 @@ function storeProblem(error) {
 
   switch (error.code) {
     case "settings-too-large":
-      return "The settings are too large to be saved. Shorten the list of excluded sites.";
+      return t("problem.settings-too-large");
     case "unsupported":
-      return "These rules were saved by a newer version of Bookmark Peeler, so they can't be changed here.";
+      return t("problem.newer-changed");
     default:
       return null;
   }
@@ -223,7 +227,7 @@ async function saveConfig(next, { rerender = true } = {}) {
     await store.writeConfig(next);
   } catch (error) {
     console.error("Bookmark Peeler:", error);
-    showMessage(storeProblem(error) ?? "Couldn't save your changes. Reload the page and try again.");
+    showMessage(storeProblem(error) ?? t("problem.save-failed"));
     return false;
   }
 
@@ -247,7 +251,7 @@ function indexOfId(id) {
 function statusMessage(rule, status) {
   const issues = validateRule(rule);
   const issue = issues.find(i => i.severity === status);
-  return status === "error" ? `Not applied until fixed: ${issue.message}` : issue.message;
+  return status === "error" ? t("rule.not-applied", { message: issue.message }) : issue.message;
 }
 
 function renderRule(rule) {
@@ -271,8 +275,8 @@ function renderRule(rule) {
   toggle.type = "checkbox";
   toggle.setAttribute("role", "switch");
   toggle.checked = rule.enabled !== false;
-  toggle.setAttribute("aria-label", `Enable ${title}`);
-  toggle.title = "Enable or disable this rule";
+  toggle.setAttribute("aria-label", t("rule.enable-label", { title }));
+  toggle.title = t("rule.enable-tip");
 
   const main = document.createElement("button");
   main.type = "button";
@@ -315,8 +319,8 @@ function renderRule(rule) {
   remove.className = "delete icon-btn";
   remove.append(Object.assign(document.createElement("span"), { className: "icon icon-delete" }));
   remove.firstElementChild.setAttribute("aria-hidden", "true");
-  remove.title = "Delete rule";
-  remove.setAttribute("aria-label", `Delete ${title}`);
+  remove.title = t("rule.delete-tip");
+  remove.setAttribute("aria-label", t("rule.delete-label", { title }));
   item.append(remove);
 
   return item;
@@ -443,7 +447,7 @@ async function applySelection(state, focusOn = null) {
     selectedId = null;
     selectedIds = state.ids;
     anchorId = state.anchor;
-    editor.close(state.ids.length > 1 ? `${state.ids.length} rules selected.` : undefined);
+    editor.close(state.ids.length > 1 ? t("rule.selected", { count: state.ids.length }) : undefined);
   }
 
   if (focusOn) focusId = focusOn;
@@ -534,8 +538,8 @@ async function deleteRules(ids) {
   await save(rules);
 
   const text = removed.length === 1
-    ? `Deleted “${ellipsize(ruleTitle(removed[0].rule), MESSAGE_NAME_MAX)}”.`
-    : `Deleted ${removed.length} rules.`;
+    ? t("rule.deleted-one", { name: ellipsize(ruleTitle(removed[0].rule), MESSAGE_NAME_MAX) })
+    : t("rule.deleted-many", { count: removed.length });
   showUndo(text, () => restoreDeleted(removed));
 }
 
@@ -553,7 +557,7 @@ async function restoreDeleted(removed) {
     selectedId = null;
     selectedIds = ids;
     anchorId = ids[0];
-    editor.close(`${ids.length} rules selected.`);
+    editor.close(t("rule.selected", { count: ids.length }));
   }
   focusId = ids[0];
   render();
@@ -623,12 +627,10 @@ function download(file) {
 }
 
 const IMPORT_PROBLEMS = {
-  "not-json": "That file isn't valid JSON, so it can't be imported.",
-  "not-config": "That file isn't a Bookmark Peeler file.",
-  unsupported: "That file was saved by a newer version of Bookmark Peeler, so it can't be imported.",
+  "not-json": "import.not-json",
+  "not-config": "import.not-config",
+  unsupported: "import.unsupported",
 };
-
-const count = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 
 /**
  * Shows what the file holds and returns what to import: { rules: "add" | "replace" | "none", settings: boolean },
@@ -637,12 +639,12 @@ const count = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 function askImport(filename, summary) {
   if (!summary.rules) return Promise.resolve({ rules: "none", settings: true });
 
-  const lines = [`${filename}: ${count(summary.rules.total, "rule", "rules")}${summary.settings ? " and settings" : ""}.`];
+  const lines = [t(summary.settings ? "import.file-settings" : "import.file", { filename, rules: t("rules", { count: summary.rules.total }) })];
   if (summary.rules.withErrors > 0) {
-    lines.push(`${count(summary.rules.withErrors, "has errors and isn't", "have errors and aren't")} applied until fixed.`);
+    lines.push(t("import.with-errors", { count: summary.rules.withErrors }));
   }
   if (summary.rules.clashes > 0) {
-    lines.push(`${count(summary.rules.clashes, "rule already exists", "rules already exist")}; when added, they get new ids.`);
+    lines.push(t("import.clashes", { count: summary.rules.clashes }));
   }
 
   $("import-lines").replaceChildren(...lines.map(text => {
@@ -701,7 +703,7 @@ async function importFile(file) {
 
   const parsed = parseImport(await file.text());
   if (!parsed.ok) {
-    showMessage(IMPORT_PROBLEMS[parsed.reason]);
+    showMessage(t(IMPORT_PROBLEMS[parsed.reason]));
     return;
   }
 
@@ -718,9 +720,9 @@ async function importFile(file) {
   render();
 
   const parts = [];
-  if (choice.rules !== "none" && parsed.rules) parts.push(count(parsed.rules.length, "rule", "rules"));
-  if (choice.settings && parsed.settings) parts.push("the settings");
-  showUndo(`Imported ${parts.join(" and ")}.`, () => restoreConfig(previous));
+  if (choice.rules !== "none" && parsed.rules) parts.push(t("rules", { count: parsed.rules.length }));
+  if (choice.settings && parsed.settings) parts.push(t("import.settings-part"));
+  showUndo(t("import.done", { parts: parts.length > 1 ? t("and", { first: parts[0], second: parts[1] }) : parts[0] }), () => restoreConfig(previous));
 }
 
 async function restoreConfig(previous) {
@@ -985,5 +987,5 @@ editor.close();
 load()
   .catch(error => {
     console.error("Bookmark Peeler:", error);
-    showNotice("Couldn't load your rules.");
+    showNotice(t("problem.load-failed"));
   });

@@ -29,8 +29,7 @@ import { testRules, describeChange } from "./tester.js";
 import { getPref, setPref } from "./prefs.js";
 import { el, autosize } from "./dom.js";
 import { NAME_MAX } from "../core/schema.js";
-
-const DEFAULT_PLACEHOLDER = "Select a rule to edit it, or add a new one.";
+import { t } from "../core/text.js";
 
 const parsePath = key => key.split(".").map(part => (/^\d+$/.test(part) ? Number(part) : part));
 const clone = value => structuredClone(value);
@@ -51,7 +50,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   let touched = new Set(); // keys of the fields the user has changed; issues are shown only for these
   let showAll = false; // after Save, or once a URL is in Try it, every issue is shown, and it stays shown
   let justSaved = false;
-  let placeholder = DEFAULT_PLACEHOLDER; // what the empty editor says
+  let placeholder = t("editor.placeholder"); // what the empty editor says
   let collapsedCards = []; // for each action of the draft, whether its card is collapsed; only shown, never stored
 
   // The tested URL is kept while the page is open, so it is still there when another rule is opened, but it is not stored.
@@ -119,37 +118,37 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const mode = scopeMode(draft.scope);
 
     const select = el("select", { dataset: { scopeMode: "" } },
-      el("option", { value: "all", textContent: "All sites" }),
-      el("option", { value: "host", textContent: "Domain" }),
-      el("option", { value: "path", textContent: "Domain + path" }));
+      el("option", { value: "all", textContent: t("scope.all") }),
+      el("option", { value: "host", textContent: t("scope.host") }),
+      el("option", { value: "path", textContent: t("scope.path") }));
     select.value = mode;
 
     // One column, every field with its label above it: the scope, then the domain, whether subdomains count, and the path.
     const stack = el("div", { className: "stack" },
       el("div", { className: "group" },
-        el("label", { className: "field" }, el("span", { className: "label" }, "Scope"), select),
+        el("label", { className: "field" }, el("span", { className: "label" }, t("scope.label")), select),
         slot("scope.type")));
 
     if (mode !== "all") {
       stack.append(
-        el("div", { className: "group" }, textField("Domain", ["scope", "host"], "example.com"), slot("scope.host")),
-        checkbox("Include subdomains", draft.scope.subdomains !== false, { path: "scope.subdomains" }));
+        el("div", { className: "group" }, textField(t("scope.domain"), ["scope", "host"], t("placeholder.domain")), slot("scope.host")),
+        checkbox(t("scope.subdomains"), draft.scope.subdomains !== false, { path: "scope.subdomains" }));
     }
     if (mode === "path") {
       stack.append(el("div", { className: "group" },
-        textField("Path", ["scope", "path"], "video"),
-        el("p", { className: "hint" }, "Use * for one level and ** for any depth, for example albums/* or a/**."),
+        textField(t("scope.path-label"), ["scope", "path"], t("placeholder.path")),
+        el("p", { className: "hint" }, t("scope.path-hint")),
         slot("scope.path")));
     }
 
-    const section = el("section", {}, el("h3", {}, "Applies to"), stack);
+    const section = el("section", {}, el("h3", {}, t("scope.applies")), stack);
 
     // Sites where the rule does nothing, for every scope.
     // Drawn like the same list in Settings: a heading, the box labelled "Domains, one per line", and the hint.
     section.append(el("div", { className: "excluded-sites" },
-      el("h3", {}, "Excluded sites"),
-      linesField("Domains, one per line", ["scope", "except"], "example.com", { rows: 2, grow: { minRows: 2, maxRows: 10 } }),
-      el("p", { className: "hint" }, "The rule does nothing on these sites. Subdomains are included."),
+      el("h3", {}, t("settings.excluded")),
+      linesField(t("settings.excluded-label"), ["scope", "except"], t("placeholder.domain"), { rows: 2, grow: { minRows: 2, maxRows: 10 } }),
+      el("p", { className: "hint" }, t("scope.excluded-hint")),
       slot("scope.except")));
     return section;
   }
@@ -162,26 +161,26 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const ticked = typeof draft.actions[index]?.[part]?.replace === "string";
 
     const replacement = textInput([...base, "replace"], placeholders.replace, { mono: true, disabled: !ticked });
-    replacement.setAttribute("aria-label", `${title} replacement`);
+    replacement.setAttribute("aria-label", t("action.replacement-label", { title }));
 
     return el("div", { className: "group" },
       el("div", { className: "group-title" }, el("strong", {}, title), el("span", { className: "desc" }, description)),
       el("div", { className: "find-pair" },
-        textField("Find", [...base, "find"], placeholders.find, { mono: true }),
+        textField(t("action.find"), [...base, "find"], placeholders.find, { mono: true }),
         el("span", { className: "arrow", "aria-hidden": "true" }, "→"),
-        el("div", { className: "field" }, checkbox("Replace with", ticked, { replacePath: key }), replacement)),
+        el("div", { className: "field" }, checkbox(t("action.replace-with"), ticked, { replacePath: key }), replacement)),
       slot(`${key}.find`),
       slot(`${key}.replace`));
   }
 
   const ACTIONS = {
-    remove: { title: "Remove parameter", description: "Removes matching query parameters." },
-    replace: { title: "Replace", description: "Replaces matching parameter names or values." },
-    keep: { title: "Keep only these parameters", description: "Removes all parameters not listed." },
+    remove: { title: t("action.remove"), description: t("action.remove-desc") },
+    replace: { title: t("action.replace"), description: t("action.replace-desc") },
+    keep: { title: t("action.keep"), description: t("action.keep-desc") },
   };
 
   function actionCard(action, index) {
-    const info = ACTIONS[action?.type] ?? { title: "Unknown action", description: "" };
+    const info = ACTIONS[action?.type] ?? { title: t("action.unknown"), description: "" };
     const isCollapsed = collapsedCards[index] === true;
 
     const count = draft.actions.length;
@@ -189,28 +188,28 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       const button = el("button", {
         type: "button",
         textContent: direction === "up" ? "↑" : "↓",
-        title: `Move ${direction} (Ctrl+Alt+${direction === "up" ? "Up" : "Down"})`,
+        title: t(direction === "up" ? "action.move-up-tip" : "action.move-down-tip"),
         disabled,
         dataset: { moveAction: direction, actionIndex: String(index) },
       });
-      button.setAttribute("aria-label", `Move action ${index + 1} ${direction}`);
+      button.setAttribute("aria-label", t(direction === "up" ? "action.move-up-label" : "action.move-down-label", { number: index + 1 }));
       return button;
     };
 
-    const remove = el("button", { type: "button", className: "delete icon-btn", title: "Delete action", dataset: { removeAction: String(index) } },
+    const remove = el("button", { type: "button", className: "delete icon-btn", title: t("action.delete-tip"), dataset: { removeAction: String(index) } },
       el("span", { className: "icon icon-delete", "aria-hidden": "true" }));
-    remove.setAttribute("aria-label", `Delete action ${index + 1}`);
+    remove.setAttribute("aria-label", t("action.delete-label", { number: index + 1 }));
 
-    const grip = el("span", { className: "grip", draggable: true, title: "Drag to reorder", dataset: { actionGrip: String(index) } }, "⋮⋮");
+    const grip = el("span", { className: "grip", draggable: true, title: t("action.drag-tip"), dataset: { actionGrip: String(index) } }, "⋮⋮");
     grip.setAttribute("aria-hidden", "true");
 
     const toggle = el("button", { type: "button", className: "icon-btn", dataset: { toggleCard: String(index) } },
       el("span", { className: "icon", "aria-hidden": "true" }));
-    toggle.setAttribute("aria-label", `Action ${index + 1}, ${info.title}`);
+    toggle.setAttribute("aria-label", t("action.toggle-label", { number: index + 1, title: info.title }));
 
-    const flag = el("span", { className: "status card-flag", title: "This action has an error", dataset: { status: "error" } });
+    const flag = el("span", { className: "status card-flag", title: t("action.error-flag"), dataset: { status: "error" } });
     flag.setAttribute("role", "img");
-    flag.setAttribute("aria-label", "This action has an error");
+    flag.setAttribute("aria-label", t("action.error-flag"));
 
     const body = el("div", { className: "card-body" });
     const card = el("div", { className: "card", dataset: { actionIndex: String(index) } },
@@ -228,21 +227,21 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
     if (action?.type === "remove") {
       body.append(el("div", { className: "group" },
-        textField("Parameter", ["actions", index, "parameter"], "utm_*", { mono: true }),
-        el("p", { className: "hint" }, "* = any characters"),
+        textField(t("action.parameter"), ["actions", index, "parameter"], t("placeholder.parameter"), { mono: true }),
+        el("p", { className: "hint" }, t("action.wildcard-hint")),
         slot(`actions.${index}.parameter`)));
     } else if (action?.type === "keep") {
       body.append(el("div", { className: "group" },
-        linesField("Parameters", ["actions", index, "parameters"], "list\nutm_*"),
-        el("p", { className: "hint" }, "One per line. * = any characters"),
+        linesField(t("action.parameters"), ["actions", index, "parameters"], t("placeholder.parameters")),
+        el("p", { className: "hint" }, t("action.keep-hint")),
         slot(`actions.${index}.parameters`)));
     } else if (action?.type === "replace") {
       body.append(
-        replaceGroup(index, "parameter", "Parameter name", "Rename a parameter.", { find: "^visibility$", replace: "" }),
-        replaceGroup(index, "value", "Parameter value", "Replace a value.", { find: "^public$", replace: "private" }),
+        replaceGroup(index, "parameter", t("action.name-title"), t("action.name-desc"), { find: t("placeholder.name-find"), replace: t("placeholder.name-replace") }),
+        replaceGroup(index, "value", t("action.value-title"), t("action.value-desc"), { find: t("placeholder.value-find"), replace: t("placeholder.value-replace") }),
         el("div", { className: "group" },
-          checkbox("Case sensitive", action.ignoreCase !== true, { path: `actions.${index}.ignoreCase`, invert: "true" }),
-          el("p", { className: "hint" }, "Empty = any parameter. Supports regex. Use ^ and $ for exact matches.")));
+          checkbox(t("action.case"), action.ignoreCase !== true, { path: `actions.${index}.ignoreCase`, invert: "true" }),
+          el("p", { className: "hint" }, t("action.replace-hint"))));
     } else {
       body.append(slot(`actions.${index}.type`));
     }
@@ -262,20 +261,20 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     card.querySelector(":scope > .desc").hidden = isCollapsed;
     toggle.firstElementChild.className = `icon ${isCollapsed ? "icon-expand" : "icon-collapse"}`;
     toggle.setAttribute("aria-expanded", String(!isCollapsed));
-    toggle.title = isCollapsed ? "Expand" : "Collapse";
+    toggle.title = t(isCollapsed ? "action.expand" : "action.collapse");
     card.querySelector(".card-summary").textContent = isCollapsed ? actionSummary(draft.actions[index]) : "";
   }
 
   function actionsSection() {
     const addMenu = el("select", { dataset: { addAction: "" } },
       // Shown while closed, but not offered in the list.
-      el("option", { value: "", textContent: "Add action…", hidden: true, disabled: true, selected: true }),
-      el("option", { value: "remove", textContent: "Remove parameter" }),
-      el("option", { value: "replace", textContent: "Replace" }),
-      el("option", { value: "keep", textContent: "Keep only these parameters" }));
+      el("option", { value: "", textContent: t("action.add"), hidden: true, disabled: true, selected: true }),
+      el("option", { value: "remove", textContent: t("action.remove") }),
+      el("option", { value: "replace", textContent: t("action.replace") }),
+      el("option", { value: "keep", textContent: t("action.keep") }));
 
     return el("section", {},
-      el("h3", {}, "Actions, run top to bottom"),
+      el("h3", {}, t("action.heading")),
       slot("actions"),
       ...draft.actions.map(actionCard),
       addMenu);
@@ -290,7 +289,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const url = el("input", {
       type: "text",
       value: tester.url,
-      placeholder: "https://www.example.com/video?v=Hn4xT9sBq2L&pp=…",
+      placeholder: t("placeholder.test-url"),
       spellcheck: false,
       autocomplete: "off",
       className: "mono",
@@ -303,9 +302,9 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
     return el("section", { className: "tester" },
       el("div", { className: "tester-head" },
-        el("h3", {}, "Try it"),
-        el("div", { className: "segmented", role: "radiogroup" }, radio("all", "All rules"), radio("current", "Current rule"))),
-      el("label", { className: "field" }, el("span", { className: "label" }, "URL to test"), url),
+        el("h3", {}, t("try.title")),
+        el("div", { className: "segmented", role: "radiogroup" }, radio("all", t("try.all")), radio("current", t("try.current")))),
+      el("label", { className: "field" }, el("span", { className: "label" }, t("try.url")), url),
       el("div", { className: "result", role: "status" }),
       changes);
   }
@@ -323,11 +322,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     changes.hidden = true;
 
     if (outcome.status === "empty") {
-      result.append(note("Paste a URL to see what the rule does."));
+      result.append(note(t("try.empty")));
       return;
     }
     if (outcome.status === "invalid") {
-      result.append(note("Enter a full URL starting with http:// or https://."));
+      result.append(note(t("try.invalid")));
       return;
     }
 
@@ -335,7 +334,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       ...outcome.segments.map(segment => (segment.changed ? el("span", { className: "changed" }, segment.text) : segment.text))));
 
     for (const text of outcome.notes) result.append(note(text));
-    if (outcome.changes.length === 0 && outcome.notes.length === 0) result.append(note("No changes."));
+    if (outcome.changes.length === 0 && outcome.notes.length === 0) result.append(note(t("try.no-changes")));
     if (outcome.changes.length === 0) return;
 
     const titleOf = ruleId => {
@@ -345,7 +344,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     };
 
     changes.hidden = false;
-    changes.querySelector("summary").textContent = `What changed (${outcome.changes.length})`;
+    changes.querySelector("summary").textContent = t("try.changed", { count: outcome.changes.length });
     changes.querySelector("ul").replaceChildren(...outcome.changes.map(change => {
       const { kind, text } = describeChange(change);
       const by = tester.mode === "all" ? titleOf(change.ruleId) : null;
@@ -355,10 +354,10 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
         el("span", { className: kind === "removed" ? "mark rm" : "mark ch", "aria-hidden": "true" }, kind === "removed" ? "✕" : "↔"),
         el("div", { className: "what" },
           el("div", {},
-            el("span", { className: "kind" }, kind === "removed" ? "Removed:" : "Changed:"),
+            el("span", { className: "kind" }, t(kind === "removed" ? "try.removed" : "try.changed-kind")),
             " ",
             el("span", { className: "mono" }, text)),
-          ...(by ? [el("div", { className: "by" }, `Rule: ${by}`)] : [])));
+          ...(by ? [el("div", { className: "by" }, t("try.rule", { name: by }))] : [])));
     }));
   }
 
@@ -368,14 +367,14 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       return;
     }
 
-    const duplicate = el("button", { type: "button", textContent: "Duplicate", dataset: { duplicate: "" } });
-    const header = el("div", { className: "row" }, textField("Name (optional)", ["name"], "Example visibility", { maxLength: NAME_MAX }), duplicate);
+    const duplicate = el("button", { type: "button", textContent: t("editor.duplicate"), dataset: { duplicate: "" } });
+    const header = el("div", { className: "row" }, textField(t("editor.name"), ["name"], t("placeholder.name"), { maxLength: NAME_MAX }), duplicate);
 
     const footer = el("div", { className: "footer" },
-      el("button", { type: "button", className: "primary", textContent: "Save", dataset: { save: "" } }),
-      el("button", { type: "button", textContent: "Revert", dataset: { revert: "" } }),
+      el("button", { type: "button", className: "primary", textContent: t("button.save"), dataset: { save: "" } }),
+      el("button", { type: "button", textContent: t("editor.revert"), dataset: { revert: "" } }),
       // A rule that is not stored yet can be closed without saving it.
-      ...(isNew ? [el("button", { type: "button", textContent: "Cancel", dataset: { cancel: "" } })] : []),
+      ...(isNew ? [el("button", { type: "button", textContent: t("button.cancel"), dataset: { cancel: "" } })] : []),
       el("span", { className: "summary", id: "summary", role: "status" }));
 
     if (collapsedCards.length !== draft.actions.length) collapsedCards = startCollapsed(draft);
@@ -414,7 +413,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     }
 
     const summary = root.querySelector("#summary");
-    if (summary) summary.textContent = summaryText(visible) || (justSaved ? "Saved." : "");
+    if (summary) summary.textContent = summaryText(visible) || (justSaved ? t("editor.saved") : "");
 
     // Each button is active only when it would do something.
     const save = root.querySelector("[data-save]");
@@ -730,7 +729,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     },
 
     /** Empties the editor; `message` is what it says instead of the usual invitation, for example "3 rules selected." */
-    close(message = DEFAULT_PLACEHOLDER) {
+    close(message = t("editor.placeholder")) {
       draft = null;
       baseline = null;
       collapsedCards = [];
@@ -775,7 +774,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     get isOpen() { return draft !== null; },
     get isNew() { return isNew; },
     get id() { return draft?.id ?? null; },
-    get title() { return draft?.name?.trim() || "New rule"; },
+    get title() { return draft?.name?.trim() || t("rule.new"); },
     isDirty: () => draft !== null && isDirty(draft, baseline),
     canSave: () => draft !== null && canSave(draft, baseline, isNew),
     snapshot: () => (draft === null ? null : clone(draft)),

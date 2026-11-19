@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bookmark Peeler</title>
+  <title data-text="app.name"></title>
   <link rel="stylesheet" href="options.css">
   <script type="module" src="index.js"></script>
 </head>
 <body>
   <header>
-    <h1>Bookmark Peeler</h1>
+    <h1 data-text="app.name"></h1>
     <div class="tools">
       <details id="presets" class="menu">
-        <summary>Presets</summary>
+        <summary data-text="presets.title"></summary>
         <div id="presets-list" class="menu-list"></div>
       </details>
-      <button id="export" type="button" title="Save rules and settings to a file">Export…</button>
-      <button id="import" type="button" title="Bring rules and settings in from a file">Import…</button>
-      <button id="settings-button" type="button" aria-pressed="false"><span class="icon icon-gear" aria-hidden="true"></span>Settings</button>
+      <button id="export" type="button" data-title="export.tip" data-text="export.button"></button>
+      <button id="import" type="button" data-title="import.tip" data-text="import.button"></button>
+      <button id="settings-button" type="button" aria-pressed="false"><span class="icon icon-gear" aria-hidden="true"></span><span data-text="settings.title"></span></button>
       <input id="import-file" type="file" accept=".json,application/json" hidden>
     </div>
   </header>
@@ -25,96 +25,96 @@
   <main>
     <section class="sidebar" aria-labelledby="rules-heading">
       <div class="sidebar-head">
-        <h2 id="rules-heading">Rules</h2>
-        <button id="collapse" type="button" class="icon-btn" aria-expanded="true" aria-label="Hide the rule list" title="Hide the rule list ([)"><span class="icon icon-chevron-left" aria-hidden="true"></span></button>
+        <h2 id="rules-heading" data-text="list.heading"></h2>
+        <button id="collapse" type="button" class="icon-btn" aria-expanded="true"><span class="icon icon-chevron-left" aria-hidden="true"></span></button>
       </div>
-      <button id="add" type="button" class="sidebar-add" aria-label="Add rule" title="Add rule"><span class="icon icon-plus" aria-hidden="true"></span><span class="full">Add rule</span></button>
+      <button id="add" type="button" class="sidebar-add" data-aria-label="list.add" data-title="list.add"><span class="icon icon-plus" aria-hidden="true"></span><span class="full" data-text="list.add"></span></button>
       <p id="notice" class="notice" role="alert" hidden></p>
-      <ul id="rules" class="rules" aria-label="Rules"></ul>
+      <ul id="rules" class="rules" data-aria-label="list.heading"></ul>
     </section>
 
-    <section id="editor" class="editor" aria-label="Rule editor"></section>
-    <section id="settings" class="editor" aria-label="Settings" hidden></section>
+    <section id="editor" class="editor" data-aria-label="editor.label"></section>
+    <section id="settings" class="editor" data-aria-label="settings.title" hidden></section>
 
-    <section id="empty" class="editor empty" aria-label="No rules" hidden>
-      <h2>No rules yet</h2>
-      <p>Bookmark Peeler cleans the URL of a bookmark when you save it, using rules you create.</p>
+    <section id="empty" class="editor empty" data-aria-label="empty.label" hidden>
+      <h2 data-text="empty.title"></h2>
+      <p data-text="empty.text"></p>
       <div class="empty-actions">
-        <button id="empty-add" type="button" class="primary">Add rule</button>
+        <button id="empty-add" type="button" class="primary" data-text="list.add"></button>
       </div>
     </section>
   </main>
 
   <div id="toast" class="toast" role="status" hidden>
     <span id="toast-text"></span>
-    <button id="toast-undo" type="button" title="Ctrl+Z">Undo</button>
+    <button id="toast-undo" type="button" data-title="toast.undo-tip" data-text="toast.undo"></button>
   </div>
 
   <dialog id="bulk-dialog" class="hl-text" aria-labelledby="bulk-title">
     <form method="dialog">
-      <p id="bulk-title"><strong>Clean existing bookmarks</strong></p>
+      <p id="bulk-title"><strong data-text="settings.clean-title"></strong></p>
       <p id="bulk-summary"></p>
       <details id="bulk-details" hidden>
         <summary id="bulk-details-summary"></summary>
         <div class="bulk-head">
-          <div class="pair" aria-hidden="true"><span>Before</span><span>After</span></div>
-          <div class="segmented" role="radiogroup" aria-label="How to mark the changed parts">
-            <label><input type="radio" name="bulk-highlight" value="text"><span>Text colour</span></label>
-            <label><input type="radio" name="bulk-highlight" value="background"><span>Background</span></label>
+          <div class="pair" aria-hidden="true"><span data-text="bulk.before"></span><span data-text="bulk.after"></span></div>
+          <div class="segmented" role="radiogroup" data-aria-label="bulk.mark">
+            <label><input type="radio" name="bulk-highlight" value="text"><span data-text="bulk.text-colour"></span></label>
+            <label><input type="radio" name="bulk-highlight" value="background"><span data-text="bulk.background"></span></label>
           </div>
         </div>
         <ul id="bulk-list" class="bulk-list"></ul>
-        <button id="bulk-more" type="button" hidden>Show more…</button>
+        <button id="bulk-more" type="button" hidden></button>
       </details>
       <div class="buttons">
-        <button id="bulk-clean" value="clean" autofocus hidden>Clean</button>
-        <button id="bulk-close" value="cancel">Cancel</button>
+        <button id="bulk-clean" value="clean" autofocus hidden></button>
+        <button id="bulk-close" value="cancel" data-text="button.cancel"></button>
       </div>
     </form>
   </dialog>
 
   <dialog id="export-dialog" aria-labelledby="export-title">
     <form method="dialog">
-      <p id="export-title"><strong>Export</strong></p>
+      <p id="export-title"><strong data-text="export.title"></strong></p>
       <div class="choices">
-        <label class="check"><input id="export-settings" type="checkbox" checked> Settings</label>
-        <label class="check"><input id="export-rules" type="checkbox" checked> Rules</label>
+        <label class="check"><input id="export-settings" type="checkbox" checked> <span data-text="settings.title"></span></label>
+        <label class="check"><input id="export-rules" type="checkbox" checked> <span data-text="list.heading"></span></label>
       </div>
       <div class="buttons">
-        <button id="export-go" value="export" autofocus>Export</button>
-        <button value="cancel">Cancel</button>
+        <button id="export-go" value="export" autofocus data-text="export.go"></button>
+        <button value="cancel" data-text="button.cancel"></button>
       </div>
     </form>
   </dialog>
 
   <dialog id="import-dialog" aria-labelledby="import-title">
     <form method="dialog">
-      <p id="import-title"><strong>Import</strong></p>
+      <p id="import-title"><strong data-text="import.title"></strong></p>
       <ul id="import-lines" class="lines"></ul>
       <div id="import-settings-row" class="choices" hidden>
-        <label class="check"><input id="import-settings" type="checkbox" checked>Settings</label>
+        <label class="check"><input id="import-settings" type="checkbox" checked><span data-text="settings.title"></span></label>
       </div>
       <div id="import-rules-row" class="choices" hidden>
-        <label class="check"><input id="import-rules" type="checkbox" checked>Rules</label>
+        <label class="check"><input id="import-rules" type="checkbox" checked><span data-text="list.heading"></span></label>
         <fieldset id="import-how" class="choices nested">
-          <label class="check"><input type="radio" name="import-how" value="replace"> Replace my rules</label>
-          <label class="check"><input type="radio" name="import-how" value="add" checked> Add to my rules</label>
+          <label class="check"><input type="radio" name="import-how" value="replace"> <span data-text="import.replace"></span></label>
+          <label class="check"><input type="radio" name="import-how" value="add" checked> <span data-text="import.add"></span></label>
         </fieldset>
       </div>
       <div class="buttons">
-        <button id="import-go" value="import" autofocus>Import</button>
-        <button value="cancel">Cancel</button>
+        <button id="import-go" value="import" autofocus data-text="import.go"></button>
+        <button value="cancel" data-text="button.cancel"></button>
       </div>
     </form>
   </dialog>
 
   <dialog id="unsaved" aria-labelledby="unsaved-text">
     <form method="dialog">
-      <p id="unsaved-text">This rule has unsaved changes.</p>
+      <p id="unsaved-text" data-text="unsaved.text"></p>
       <div class="buttons">
-        <button value="save" autofocus>Save</button>
-        <button value="discard">Discard</button>
-        <button value="cancel">Cancel</button>
+        <button value="save" autofocus data-text="button.save"></button>
+        <button value="discard" data-text="unsaved.discard"></button>
+        <button value="cancel" data-text="button.cancel"></button>
       </div>
     </form>
   </dialog>

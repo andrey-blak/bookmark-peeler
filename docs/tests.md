@@ -13,6 +13,7 @@ The tests are in `tests/unit/`, one file per module:
 - `src/background/`: what happens when a bookmark is created or edited (including the guard against the add-on's own writes) and the bulk URL changes, with a fake browser.
 - `src/storage/` has the store, tested with two storage areas in memory.
 - `src/options/`: the logic of the rule list and of selecting several rules, the rule editor, the "Try it" panel, import and export, the presets, and the scan and undo of "Clean existing bookmarks", without DOM.
+- The texts: `src/strings.js` has every key the code asks for and no unused one, and the forms of a plural take the same values.
 - The manifest: permissions, background page, options page and icons.
 
 Not covered by them: the pages as drawn in Firefox (layout, focus, drag and drop, dialogs) and the real bookmark events.
@@ -330,3 +331,9 @@ Use a rule with three actions: Remove `utm_*`, Replace (parameter name `visi` �
 6. ↑, ↓, drag and Ctrl+Alt+Up or Down move a collapsed card, and its collapsed state goes with it. Deleting a card keeps the others as they were. A new action from "Add action…" is expanded, and the others keep their state.
 7. Expand a card, empty its Parameter and collapse it: the summary says `(empty)`, and a red "!" mark follows it, because a stored rule shows all its errors at once. Save the rule: the card with the error opens by itself.
 8. Revert, and opening another rule, set the cards back to their starting state (collapsed with several actions).
+
+### Texts
+
+1. The pages look and read as before: header, rule list, editor, Settings, the dialogs, the messages at the bottom, the Presets menu. Nothing shows a key such as `rule.untitled` or a `{value}` in braces.
+2. Change a text in `src/strings.js` (for example `"list.add"` to `"New rule"`), reload the add-on: both Add buttons and the tooltip show it. Change `"bookmarks"` to `{ one: "{count} link", other: "{count} links" }`: "Clean existing bookmarks…" and its messages say "link" and "links", with 1 as "1 link".
+3. Put a rule with two errors and one warning in the editor: the line next to Save reads "2 errors and 1 warning. The rule isn't applied until the errors are fixed." With one error and no warning: "1 error. The rule isn't applied until the error is fixed."

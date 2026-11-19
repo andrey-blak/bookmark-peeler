@@ -4,6 +4,7 @@ import { cleanUrlTraced, isWebUrl } from "../core/engine.js";
 import { scopeMismatch } from "../core/scope.js";
 import { isExcluded } from "../core/exclusions.js";
 import { splitUrl } from "../core/query.js";
+import { t } from "../core/text.js";
 import { validateRule, hasErrors, usableRules } from "../core/schema.js";
 
 /**
@@ -42,7 +43,7 @@ export function testRules(input, { draft, rules, mode, excludedSites = [] }) {
     const candidates = usableRules(merged);
 
     if (usable && candidates.find(rule => rule.id === draft.id)?.enabled === false) {
-      notes.push("This rule is switched off in the list, so it isn't applied.");
+      notes.push(t("try.note-off"));
     }
 
     // On an excluded site the add-on does nothing, so no rule runs.
@@ -50,15 +51,15 @@ export function testRules(input, { draft, rules, mode, excludedSites = [] }) {
   }
 
   if (!usable) {
-    notes.push("This rule has errors, so it isn't applied.");
+    notes.push(t("try.note-errors"));
   } else if (!notes.length) {
     const mismatch = scopeMismatch(draft.scope, url);
-    if (mismatch === "except") notes.push("This rule doesn't apply to this URL: the site is in its exceptions.");
-    else if (mismatch) notes.push(`This rule doesn't apply to this URL: the ${mismatch} doesn't match.`);
+    if (mismatch === "except") notes.push(t("try.note-excepted"));
+    else if (mismatch) notes.push(t(mismatch === "domain" ? "try.note-mismatch-domain" : "try.note-mismatch-path"));
   }
 
   // In "Current rule" mode the rule's own change is still shown, with the note that the add-on would not make it.
-  if (excluded) notes.push("This site is in the Excluded sites list, so nothing would be cleaned.");
+  if (excluded) notes.push(t("try.note-excluded"));
 
   const { url: result, changes } = cleanUrlTraced(url, toRun);
   return { status: "ok", url: result, segments: highlightSegments(result, url), changes: mergeStrayRemovals(changes), notes };
@@ -82,7 +83,7 @@ export function mergeStrayRemovals(changes) {
   });
 }
 
-const showValue = value => (value === null ? "(no value)" : value);
+const showValue = value => (value === null ? t("try.no-value") : value);
 // An empty part of the query, a stray &, has no name and no value.
 const token = ({ name, value }) => (name === "" && value === null ? "&" : value === null ? name : `${name}=${value}`);
 
@@ -91,13 +92,13 @@ export function describeChange({ kind, before, after }) {
   if (kind === "removed") return { kind, text: token(before) };
 
   if (before.name === after.name) {
-    return { kind, text: `${before.name}: ${showValue(before.value)} → ${showValue(after.value)}` };
+    return { kind, text: t("try.value-changed", { name: before.name, from: showValue(before.value), to: showValue(after.value) }) };
   }
   if (before.value === after.value) {
-    const value = before.value === null ? "" : ` (value ${before.value})`;
-    return { kind, text: `${before.name} → ${after.name}${value}` };
+    const values = { from: before.name, to: after.name, value: before.value };
+    return { kind, text: t(before.value === null ? "try.renamed" : "try.renamed-with-value", values) };
   }
-  return { kind, text: `${token(before)} → ${token(after)}` };
+  return { kind, text: t("try.token-changed", { from: token(before), to: token(after) }) };
 }
 
 /**

@@ -2,6 +2,7 @@
 // It only draws and reports; what the buttons do is decided by the page (index.js).
 
 import { el, autosize } from "./dom.js";
+import { t } from "../core/text.js";
 import { siteIssues, parseSites, sitesText } from "../core/exclusions.js";
 import { UNDO_SECONDS_MIN, UNDO_SECONDS_MAX, validUndoSeconds } from "../core/schema.js";
 
@@ -24,7 +25,7 @@ export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedS
     dataset: { undoSeconds: "" },
   });
   const restoreRow = el("div", { className: "setting-row", hidden: true },
-    el("button", { type: "button", textContent: "Restore the last cleaned bookmarks", dataset: { restore: "" } }),
+    el("button", { type: "button", textContent: t("settings.restore"), dataset: { restore: "" } }),
     el("span", { className: "hint", id: "restore-hint" }));
 
   const sites = el("textarea", {
@@ -40,30 +41,30 @@ export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedS
   sites.setAttribute("aria-describedby", "excluded-sites-messages");
 
   const showSiteMessages = list => {
-    siteMessages.replaceChildren(...siteIssues(list).map(issue => el("li", {}, `“${issue.entry}”: ${issue.message}`)));
+    siteMessages.replaceChildren(...siteIssues(list).map(issue => el("li", {}, t("issue.except-entry", { entry: issue.entry, message: issue.message }))));
   };
 
   root.replaceChildren(
-    el("h2", { className: "settings-title" }, "Settings"),
+    el("h2", { className: "settings-title" }, t("settings.title")),
     el("section", { className: "settings-section" },
-      el("h3", {}, "Bookmarks"),
+      el("h3", {}, t("settings.bookmarks")),
       el("label", { className: "setting-row check" },
         checkbox,
         el("span", {},
-          "Also clean a bookmark when its URL is edited",
-          el("span", { className: "hint block" }, "Off: only new bookmarks are cleaned."))),
+          t("settings.clean-on-edit"),
+          el("span", { className: "hint block" }, t("settings.clean-on-edit-hint")))),
       el("label", { className: "setting-row" },
-        "Show Undo for",
+        t("settings.undo-before"),
         seconds,
-        "seconds"),
+        t("settings.undo-after")),
       el("div", { className: "setting-row" },
-        el("button", { type: "button", textContent: "Clean existing bookmarks…", dataset: { clean: "" } }),
-        el("span", { className: "hint" }, "Applies your enabled rules to the bookmarks you already have.")),
+        el("button", { type: "button", textContent: t("settings.clean"), dataset: { clean: "" } }),
+        el("span", { className: "hint" }, t("settings.clean-hint"))),
       restoreRow),
     el("section", { className: "settings-section" },
-      el("h3", {}, "Excluded sites"),
-      el("label", { className: "field" }, el("span", { className: "label" }, "Domains, one per line"), sites),
-      el("p", { className: "hint" }, "The add-on does nothing on these sites. Subdomains are included."),
+      el("h3", {}, t("settings.excluded")),
+      el("label", { className: "field" }, el("span", { className: "label" }, t("settings.excluded-label")), sites),
+      el("p", { className: "hint" }, t("settings.excluded-hint")),
       siteMessages));
 
   root.addEventListener("click", event => {
@@ -106,7 +107,7 @@ export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedS
       showSiteMessages(excludedSites);
       restoreRow.hidden = restorable === 0;
       root.querySelector("#restore-hint").textContent =
-        `${restorable} ${restorable === 1 ? "bookmark" : "bookmarks"}, until you close this page.`;
+        t("settings.restore-hint", { count: restorable });
     },
   };
 }

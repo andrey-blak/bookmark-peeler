@@ -6,6 +6,7 @@
 // "actions.0.value.find" for use as an id in the DOM and in the set of fields the user has touched.
 
 import { normalizeRule } from "../core/schema.js";
+import { t } from "../core/text.js";
 
 export const pathKey = path => path.join(".");
 
@@ -168,19 +169,19 @@ export function visibleIssues(issues, touched, showAll = false) {
   });
 }
 
-const count = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 /** The line next to the Save button; empty when there is nothing to say. */
 export function summaryText(issues) {
   const errors = issues.filter(issue => issue.severity === "error").length;
   const warnings = issues.length - errors;
 
   if (errors > 0) {
-    const found = warnings > 0 ? `${count(errors, "error")} and ${count(warnings, "warning")}` : count(errors, "error");
-    return `${found}. The rule isn't applied until the ${errors === 1 ? "error is" : "errors are"} fixed.`;
+    const found = warnings > 0
+      ? t("and", { first: t("summary.error-count", { count: errors }), second: t("summary.warning-count", { count: warnings }) })
+      : t("summary.error-count", { count: errors });
+    return t("summary.errors-line", { found, count: errors });
   }
 
-  return warnings > 0 ? `${count(warnings, "warning")}.` : "";
+  return warnings > 0 ? t("summary.warnings-line", { found: t("summary.warning-count", { count: warnings }) }) : "";
 }
 
 // --- Drafts ---
@@ -214,7 +215,7 @@ export function duplicateDraft(rule) {
   const copy = structuredClone(rule);
   delete copy.id;
 
-  if (typeof copy.name === "string" && copy.name.trim() !== "") copy.name = `${copy.name.trim()} copy`;
+  if (typeof copy.name === "string" && copy.name.trim() !== "") copy.name = t("rule.copy-name", { name: copy.name.trim() });
   return normalizeRule(copy);
 }
 
@@ -231,21 +232,21 @@ const isFilled = value => typeof value === "string" && value.trim() !== "";
 export function actionSummary(action) {
   switch (action?.type) {
     case "remove":
-      return isFilled(action.parameter) ? action.parameter : "(empty)";
+      return isFilled(action.parameter) ? action.parameter : t("summary.empty");
 
     case "keep": {
       const parameters = (Array.isArray(action.parameters) ? action.parameters : []).filter(isFilled);
-      return parameters.length > 0 ? parameters.join(", ") : "(empty)";
+      return parameters.length > 0 ? parameters.join(", ") : t("summary.empty");
     }
 
     case "replace": {
       const part = (label, spec) => {
         if (!isFilled(spec?.find)) return null;
-        if (typeof spec.replace !== "string") return `${label}: ${spec.find}`;
-        return `${label}: ${spec.find} → ${spec.replace === "" ? "(nothing)" : spec.replace}`;
+        if (typeof spec.replace !== "string") return t("summary.part", { label, find: spec.find });
+        return t("summary.part-replaced", { label, find: spec.find, replace: spec.replace === "" ? t("summary.nothing") : spec.replace });
       };
-      const parts = [part("name", action.parameter), part("value", action.value)].filter(Boolean);
-      return parts.length > 0 ? parts.join("; ") : "(empty)";
+      const parts = [part(t("summary.name"), action.parameter), part(t("summary.value"), action.value)].filter(Boolean);
+      return parts.length > 0 ? parts.join("; ") : t("summary.empty");
     }
 
     default:

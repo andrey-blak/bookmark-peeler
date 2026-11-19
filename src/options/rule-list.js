@@ -2,6 +2,7 @@
 // Every function returns a new array or object and leaves its input alone.
 
 import { validateRule, hasErrors } from "../core/schema.js";
+import { t } from "../core/text.js";
 
 const inRange = (index, length) => Number.isInteger(index) && index >= 0 && index < length;
 
@@ -128,7 +129,7 @@ export function setEnabled(rules, index, enabled) {
 
 /** Short text for where a rule applies: "All sites", "example.com/video". Empty when the scope is incomplete. */
 export function scopeLabel(scope) {
-  if (scope?.type === "all") return "All sites";
+  if (scope?.type === "all") return t("rule.all-sites");
 
   const host = typeof scope?.host === "string" ? scope.host.trim() : "";
   if (scope?.type !== "host" || host === "") return "";
@@ -137,13 +138,13 @@ export function scopeLabel(scope) {
   if (typeof scope.path === "string" && scope.path !== "") {
     label += scope.path.startsWith("/") ? scope.path : "/" + scope.path;
   }
-  if (scope.subdomains === false) label += " (no subdomains)";
+  if (scope.subdomains === false) label += " " + t("rule.no-subdomains");
   return label;
 }
 
 /** The name of the rule, else where it applies, else a placeholder. */
 export function ruleTitle(rule) {
-  return rule.name || scopeLabel(rule.scope) || "Untitled rule";
+  return rule.name || scopeLabel(rule.scope) || t("rule.untitled");
 }
 
 /** Where the rule applies, shown under the name. Empty when the title already says it. */

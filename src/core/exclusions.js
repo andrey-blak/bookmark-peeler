@@ -2,6 +2,7 @@
 // An entry is a plain domain name, written the same way as a rule's domain, and it covers the subdomains too.
 
 import { normalizeHost } from "./scope.js";
+import { t } from "./text.js";
 
 // Whether a URL is on one of the sites is decided in scope.js, which a rule's exceptions use too.
 export { isExcluded } from "./scope.js";
@@ -21,9 +22,9 @@ export function siteIssues(sites) {
     if (text === "") return;
 
     if (text !== null && text.includes("*")) {
-      issues.push({ index, entry: text, message: "Wildcards aren't supported. Subdomains are included automatically." });
+      issues.push({ index, entry: text, message: t("site.wildcard") });
     } else if (text === null || normalizeHost(text) === null) {
-      issues.push({ index, entry: text ?? String(entry), message: "Enter just the domain, without a path, port or spaces." });
+      issues.push({ index, entry: text ?? String(entry), message: t("site.invalid") });
     }
   });
 

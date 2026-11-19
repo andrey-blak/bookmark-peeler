@@ -7,6 +7,7 @@
 
 import { normalizeHost } from "./scope.js";
 import { siteIssues } from "./exclusions.js";
+import { t } from "./text.js";
 
 export const SCHEMA_VERSION = 1;
 
@@ -172,34 +173,34 @@ const warning = (path, message) => ({ path, severity: "warning", message });
 // instead of running on a site that was meant to be left alone.
 function validateExceptions(except) {
   if (except === undefined) return [];
-  if (!Array.isArray(except)) return [error(["scope", "except"], "The excluded sites must be a list.")];
+  if (!Array.isArray(except)) return [error(["scope", "except"], t("issue.except-not-list"))];
 
   const issues = siteIssues(except);
   if (issues.length === 0) return [];
 
-  return [error(["scope", "except"], issues.map(issue => `“${issue.entry}”: ${issue.message}`).join(" "))];
+  return [error(["scope", "except"], issues.map(issue => t("issue.except-entry", { entry: issue.entry, message: issue.message })).join(" "))];
 }
 
 function validateScope(scope) {
   if (scope?.type === "all") return validateExceptions(scope.except);
 
-  if (scope?.type !== "host") return [error(["scope", "type"], "Choose where the rule applies.")];
+  if (scope?.type !== "host") return [error(["scope", "type"], t("issue.scope-type"))];
 
   const issues = [];
 
   if (!isText(scope.host) || scope.host.trim() === "") {
-    issues.push(error(["scope", "host"], "Enter a domain."));
+    issues.push(error(["scope", "host"], t("issue.host-empty")));
   } else if (scope.host.includes("*")) {
-    issues.push(error(["scope", "host"], "Wildcards aren't supported in the domain. Tick “Include subdomains” to cover subdomains."));
+    issues.push(error(["scope", "host"], t("issue.host-wildcard")));
   } else if (normalizeHost(scope.host.trim()) === null) {
-    issues.push(error(["scope", "host"], "Enter just the domain, without a path, port or spaces."));
+    issues.push(error(["scope", "host"], t("site.invalid")));
   }
 
   if (scope.path !== undefined) {
     if (!isText(scope.path)) {
-      issues.push(error(["scope", "path"], "The path must be text."));
+      issues.push(error(["scope", "path"], t("issue.path-text")));
     } else if (/[?#]/.test(scope.path)) {
-      issues.push(error(["scope", "path"], "A path can't contain ? or #. Use an action for query parameters."));
+      issues.push(error(["scope", "path"], t("issue.path-chars")));
     }
   }
 
@@ -225,24 +226,24 @@ function validateReplace(action, path) {
     const part = action[key];
 
     if (part.find !== undefined && !isText(part.find)) {
-      issues.push(error([...path, key, "find"], "The pattern must be text."));
+      issues.push(error([...path, key, "find"], t("issue.pattern-text")));
     } else if (hasPattern(key)) {
       const problem = regexProblem(part.find);
-      if (problem) issues.push(error([...path, key, "find"], `Not a valid regular expression (${problem}).`));
+      if (problem) issues.push(error([...path, key, "find"], t("issue.regex-invalid", { problem })));
     } else if (part.replace !== undefined && (hasPattern("parameter") || hasPattern("value"))) {
       // Without any pattern the error for the whole action says it already.
-      issues.push(warning([...path, key, "find"], `Enter a pattern to replace in the ${key}.`));
+      issues.push(warning([...path, key, "find"], t(key === "parameter" ? "issue.pattern-missing-parameter" : "issue.pattern-missing-value")));
     }
 
     if (part.replace !== undefined && !isText(part.replace)) {
-      issues.push(error([...path, key, "replace"], "The replacement must be text."));
+      issues.push(error([...path, key, "replace"], t("issue.replacement-text")));
     }
   }
 
   if (!hasPattern("parameter") && !hasPattern("value")) {
-    issues.push(error(path, "Enter a pattern for the parameter or the value."));
+    issues.push(error(path, t("issue.pattern-none")));
   } else if (!parts.some(key => isText(action[key].replace))) {
-    issues.push(warning(path, "Nothing is replaced. Tick \"Replace with\" for the parameter or the value."));
+    issues.push(warning(path, t("issue.replace-nothing")));
   }
 
   return issues;
@@ -255,7 +256,7 @@ function validateAction(action, index) {
     case "remove":
       return isText(action.parameter) && action.parameter !== ""
         ? []
-        : [error([...path, "parameter"], "Enter a parameter name.")];
+        : [error([...path, "parameter"], t("issue.remove-parameter"))];
 
     case "replace":
       return validateReplace(action, path);
@@ -264,14 +265,14 @@ function validateAction(action, index) {
       const list = action.parameters;
       const at = [...path, "parameters"];
 
-      if (!Array.isArray(list)) return [error(at, "Enter at least one parameter.")];
-      if (!list.every(isText)) return [error(at, "Parameters must be text.")];
-      if (!list.some(entry => entry.trim() !== "")) return [error(at, "Enter at least one parameter.")];
+      if (!Array.isArray(list)) return [error(at, t("issue.keep-empty"))];
+      if (!list.every(isText)) return [error(at, t("issue.keep-text"))];
+      if (!list.some(entry => entry.trim() !== "")) return [error(at, t("issue.keep-empty"))];
       return [];
     }
 
     default:
-      return [error([...path, "type"], "Unknown action type.")];
+      return [error([...path, "type"], t("issue.action-unknown"))];
   }
 }
 
@@ -281,7 +282,7 @@ export function validateRule(rule) {
   const issues = validateScope(source.scope);
 
   if (!Array.isArray(source.actions) || source.actions.length === 0) {
-    issues.push(warning(["actions"], "This rule has no actions, so it does nothing."));
+    issues.push(warning(["actions"], t("issue.no-actions")));
   } else {
     source.actions.forEach((action, index) => issues.push(...validateAction(action, index)));
   }
