@@ -8,6 +8,8 @@
   --success: #1e7b34;
   --danger-bg: rgba(215, 0, 34, 0.18);
   --success-bg: rgba(30, 123, 52, 0.22);
+  --change: #0060df;
+  --result-bg: rgba(128, 128, 128, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +19,7 @@
     --success: #6fd283;
     --danger-bg: rgba(255, 122, 133, 0.28);
     --success-bg: rgba(111, 210, 131, 0.28);
+    --change: #80b3ff;
   }
 }
 
@@ -605,21 +608,21 @@ dialog .buttons {
 }
 
 .result {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
+/* The result has a shaded box of its own. */
 .result-url {
-  padding: 4px 6px;
-  border: 1px solid var(--line);
+  padding: 10px 12px;
   border-radius: 4px;
+  background: var(--result-bg);
   font: inherit;
   font-family: monospace;
   overflow-wrap: anywhere;
 }
 
 .result-url .changed {
-  color: var(--success);
-  font-weight: 700;
+  color: var(--change);
 }
 
 .note {
@@ -632,24 +635,29 @@ dialog .buttons {
   display: none;
 }
 
+/* The change log is below the result, after a divider. */
+.changes {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 .changes summary {
-  margin-top: 16px;
   color: GrayText;
   cursor: pointer;
 }
 
 .changes ul {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .changes li {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 8px;
-  padding: 3px 0;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
 }
 
 .changes .mark {
@@ -659,12 +667,16 @@ dialog .buttons {
   text-align: center;
 }
 
-.changes .mark.ok {
-  color: var(--success);
+.changes .mark.ch {
+  color: var(--change);
 }
 
 .changes .mark.rm {
   color: var(--danger);
+}
+
+.changes .what {
+  min-width: 0;
 }
 
 .changes .mono {
@@ -674,11 +686,7 @@ dialog .buttons {
 
 .changes .by {
   color: GrayText;
-}
-
-.changes .by strong {
-  color: CanvasText;
-  font-weight: 700;
+  font-size: 0.85em;
 }
 
 /* Collapsed rule list: a narrow strip of squares with the initial of each rule */

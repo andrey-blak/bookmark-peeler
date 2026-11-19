@@ -352,12 +352,13 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
       // Plain spaces between the parts, so the line reads right whatever the layout does.
       return el("li", {},
-        el("span", { className: kind === "removed" ? "mark rm" : "mark ok", "aria-hidden": "true" }, kind === "removed" ? "✕" : "✓"),
-        " ",
-        el("span", { className: "kind" }, kind === "removed" ? "Removed:" : "Changed:"),
-        " ",
-        el("span", { className: "mono" }, text),
-        ...(by ? [" ", el("span", { className: "by" }, "by ", el("strong", {}, by))] : []));
+        el("span", { className: kind === "removed" ? "mark rm" : "mark ch", "aria-hidden": "true" }, kind === "removed" ? "✕" : "↔"),
+        el("div", { className: "what" },
+          el("div", {},
+            el("span", { className: "kind" }, kind === "removed" ? "Removed:" : "Changed:"),
+            " ",
+            el("span", { className: "mono" }, text)),
+          ...(by ? [el("div", { className: "by" }, `Rule: ${by}`)] : [])));
     }));
   }
 
