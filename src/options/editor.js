@@ -23,7 +23,7 @@ import {
 import { ruleTitle } from "./rule-list.js";
 import { testRules, describeChange } from "./tester.js";
 import { getPref, setPref } from "./prefs.js";
-import { el } from "./dom.js";
+import { el, autosize } from "./dom.js";
 import { NAME_MAX } from "../core/schema.js";
 
 const DEFAULT_PLACEHOLDER = "Select a rule to edit it, or add a new one.";
@@ -55,6 +55,8 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
   // --- Drawing ---
 
+  let growing = []; // fits the text boxes that grow with their text, for the editor drawn now
+
   function slot(key) {
     return el("div", { className: "msg", id: `msg-${key}`, dataset: { path: key } });
   }
@@ -78,8 +80,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     return el("label", { className: "field" }, el("span", { className: hideLabel ? "label sr-only" : "label" }, label), input);
   }
 
-  /** A text box with one entry per line; the draft holds the lines as a list. */
-  function linesField(label, path, placeholder, { rows = 4 } = {}) {
+  /**
+   * A text box with one entry per line; the draft holds the lines as a list.
+   * With `grow` it starts `grow.minRows` lines high and grows with its text up to `grow.maxRows` lines.
+   */
+  function linesField(label, path, placeholder, { rows = 4, grow = null } = {}) {
     const key = pathKey(path);
     const value = path.reduce((node, part) => node?.[part], draft);
     const area = el("textarea", {
@@ -92,6 +97,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       dataset: { path: key },
     });
     area.setAttribute("aria-describedby", `msg-${key}`);
+    if (grow) growing.push(autosize(area, grow));
     return el("label", { className: "field" }, el("span", { className: "label" }, label), area);
   }
 
@@ -109,27 +115,31 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       el("option", { value: "path", textContent: "Domain + path" }));
     select.value = mode;
 
-    const row = el("div", { className: "row" },
-      el("label", { className: "field" }, el("span", { className: "label" }, "Scope"), select));
+    // One column, every field with its label above it: the scope, then the domain, whether subdomains count, and the path.
+    const stack = el("div", { className: "stack" },
+      el("div", { className: "group" },
+        el("label", { className: "field" }, el("span", { className: "label" }, "Scope"), select),
+        slot("scope.type")));
 
     if (mode !== "all") {
-      row.append(textField("Domain", ["scope", "host"], "example.com"));
-      row.append(checkbox("Subdomains", draft.scope.subdomains !== false, { path: "scope.subdomains" }));
+      stack.append(
+        el("div", { className: "group" }, textField("Domain", ["scope", "host"], "example.com"), slot("scope.host")),
+        checkbox("Include subdomains", draft.scope.subdomains !== false, { path: "scope.subdomains" }));
     }
     if (mode === "path") {
-      row.append(textField("Path", ["scope", "path"], "video"));
+      stack.append(el("div", { className: "group" },
+        textField("Path", ["scope", "path"], "video"),
+        el("p", { className: "hint" }, "Use * for one level and ** for any depth, for example albums/* or a/**."),
+        slot("scope.path")));
     }
 
-    const section = el("section", {}, el("h3", {}, "Applies to"), row, slot("scope.type"), slot("scope.host"), slot("scope.path"));
-    if (mode === "path") {
-      section.append(el("p", { className: "hint" }, "Use * for one level and ** for any depth, for example albums/* or a/**."));
-    }
+    const section = el("section", {}, el("h3", {}, "Applies to"), stack);
 
     // Sites where the rule does nothing, for every scope.
     // Drawn like the same list in Settings: a heading, the box labelled "Domains, one per line", and the hint.
     section.append(el("div", { className: "excluded-sites" },
       el("h3", {}, "Excluded sites"),
-      linesField("Domains, one per line", ["scope", "except"], "example.com", { rows: 3 }),
+      linesField("Domains, one per line", ["scope", "except"], "example.com", { rows: 2, grow: { minRows: 2, maxRows: 10 } }),
       el("p", { className: "hint" }, "The rule does nothing on these sites. Subdomains are included."),
       slot("scope.except")));
     return section;
@@ -315,7 +325,10 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       ...(isNew ? [el("button", { type: "button", textContent: "Cancel", dataset: { cancel: "" } })] : []),
       el("span", { className: "summary", id: "summary", role: "status" }));
 
-    root.replaceChildren(el("form", { className: "editor-form", noValidate: true }, header, scopeSection(), actionsSection(), testerSection(), footer));
+    growing = [];
+    const form = el("form", { className: "editor-form", noValidate: true }, header, scopeSection(), actionsSection(), testerSection(), footer);
+    root.replaceChildren(form);
+    for (const fit of growing) fit(); // they can only be measured once they are on the page
     refreshFeedback();
   }
 

@@ -259,8 +259,26 @@ main {
   white-space: nowrap;
 }
 
+/* The spacing of the editor, used the same way everywhere in it. */
+:root {
+  --space-label: 4px;   /* a label and its field */
+  --space-field: 12px;  /* one group of fields and the next */
+  --space-title: 12px;  /* the title of a card and its first field */
+  --space-card: 8px;    /* one card and the next */
+}
+
 .editor-form section {
   margin-top: 16px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-field);
+}
+
+.stack > .check {
+  align-self: flex-start;
 }
 
 .editor h3 {
@@ -279,7 +297,7 @@ main {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-label);
   min-width: 0;
 }
 
@@ -291,6 +309,13 @@ main {
 .label {
   color: GrayText;
   font-size: 0.85em;
+}
+
+/* The menus (Scope, Add action) have the text size of the text boxes, and are as wide as their text. */
+.editor select {
+  align-self: flex-start;
+  padding: 4px 6px;
+  font: inherit;
 }
 
 .editor input[type="text"] {

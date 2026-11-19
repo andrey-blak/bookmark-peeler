@@ -305,7 +305,7 @@ describe("validateRule: scope", () => {
     }
   });
 
-  test("wildcards in the domain are rejected, with a message that points to the Subdomains option", () => {
+  test("wildcards in the domain are rejected, with a message that points to the Include subdomains option", () => {
     for (const host of ["*.example.com", "example.*", "*"]) {
       const rule = { ...goodRule(), scope: { type: "host", host } };
       const issue = find(validateRule(rule), "scope.host");

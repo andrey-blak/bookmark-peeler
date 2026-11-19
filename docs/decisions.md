@@ -12,7 +12,7 @@ The decisions behind the add-on.
 ## Cleaning URLs
 
 - Query strings are parsed raw: parameters nobody touched keep their exact original bytes. Only the query changes; only `http:` and `https:` URLs are touched.
-- Matching follows the server: parameter names and paths are case-sensitive. The domain is a plain name; wildcards and regular expressions in it are rejected (the Subdomains option covers subdomains) and can be added later if needed.
+- Matching follows the server: parameter names and paths are case-sensitive. The domain is a plain name; wildcards and regular expressions in it are rejected (the Include subdomains option covers subdomains) and can be added later if needed.
 - Rules and their actions run in list order, each seeing the previous result. A rule's actions and patterns work on decoded text, and only the part that changes is re-encoded.
 
 ## Storage

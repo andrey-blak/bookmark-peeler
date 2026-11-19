@@ -190,7 +190,7 @@ function validateScope(scope) {
   if (!isText(scope.host) || scope.host.trim() === "") {
     issues.push(error(["scope", "host"], "Enter a domain."));
   } else if (scope.host.includes("*")) {
-    issues.push(error(["scope", "host"], "Wildcards aren't supported in the domain. The Subdomains option includes subdomains."));
+    issues.push(error(["scope", "host"], "Wildcards aren't supported in the domain. Tick “Include subdomains” to cover subdomains."));
   } else if (normalizeHost(scope.host.trim()) === null) {
     issues.push(error(["scope", "host"], "Enter just the domain, without a path, port or spaces."));
   }

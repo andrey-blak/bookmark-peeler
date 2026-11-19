@@ -106,7 +106,7 @@ Start with the rules from the previous section, or an empty list.
 4. Untick "Replace with" on the Value line: a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
 5. Press Save (and, in another rule, Ctrl+S while typing in a field: Firefox's "Save page" must not open). The row gets the name, or the domain when the name is empty, the • goes, and "Saved." is shown. Reload the page: the rule is there and opens with the same values.
 6. With a saved rule open, change a field and press Revert: the stored values come back. On a new rule, Revert clears the form.
-7. Scope: "All sites" hides Domain, Subdomains and Path; going back to "Domain" brings the domain back; "Domain + path" shows Path and a hint about `*` and `**`. Enter `/new` and save.
+7. Scope: "All sites" hides Domain, Include subdomains and Path; going back to "Domain" brings the domain back; "Domain + path" shows Path and a hint about `*` and `**`. Enter `/new` and save.
 8. Add a "Remove parameter" action with `utm_*`, then delete it with ×; the focus moves to the Add action menu. Delete an action that is not the last one: the actions after it move up and keep their values.
 9. Unsaved changes: change a field of a rule, then click another rule. A dialog offers Save, Discard and Cancel. Cancel (or Esc) stays; Discard switches and drops the changes; Save stores them and then switches. The same happens for Add rule and Duplicate, and with Up and Down in the list.
 10. Duplicate: a new unsaved row appears, the Name is "<name> copy" (empty when the rule had none), and the scope and actions are the same. Changing the copy does not change the original.
@@ -115,7 +115,7 @@ Start with the rules from the previous section, or an empty list.
 13. Switch a rule off in the list while it is open in the editor, then Save an edit: the rule stays off.
 14. Open the page in two tabs: save a change in one; the other tab, if it has no unsaved changes, shows it.
 15. Messages on opening a stored rule: a rule without actions shows "This rule has no actions, so it does nothing." under "Actions" as soon as it is opened. Save a new rule without actions, select another rule and come back: the warning is still there. "Has an error" shows "Enter a domain." under Domain at once. After changing a field of a stored rule and pressing Revert, the messages are still shown. A new rule shows no message until you type in it.
-16. Domain and path fields: the Path placeholder is `video` and its hint shows `albums/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. The Subdomains option includes subdomains." A path without the leading slash (`new`) still matches `/new`.
+16. Domain and path fields: the Path placeholder is `video` and its hint shows `albums/*` and `a/**`, with no leading slash. Typing `*.example.com` in Domain shows "Wildcards aren't supported in the domain. Tick “Include subdomains” to cover subdomains." A path without the leading slash (`new`) still matches `/new`.
 17. End to end: create "Remove pp" for `example.com`, action Remove parameter `pp`, and Save. Bookmark an example.com URL with `&pp=...`: the saved bookmark has no `pp`.
 18. A stored rule that you have just opened has both greyed out. Change a field: both become active, and Ctrl+S saves. Change it back to what it was: both are greyed out again. Save: Save and Revert are greyed out, and "Saved." is shown. With Save greyed out, Ctrl+S does nothing, and the browser's own "Save page" dialog does not open either.
 19. A new rule from Add rule, Duplicate or a preset has Save active at once, so a preset or a copy can be saved as it is. Revert is greyed out until you change something, and then clears the form. After Save, the rule is stored and both buttons are greyed out. Switching a rule on or off in the list does not make Save active.
@@ -285,7 +285,7 @@ Have a rule that removes `utm_*` on all sites, and bookmarks on `example.com`, `
 
 Have a rule for all sites that removes `utm_*`, and bookmarks on `example.com`, `www.example.com` and `example.org` that have `?utm_source=x`.
 
-1. In "Applies to", under the Scope row and its hints, there is a heading "Excluded sites", styled like the one in Settings, and under it a text box labelled "Domains, one per line" with the placeholder `example.com` and the hint "The rule does nothing on these sites. Subdomains are included." It is there for All sites, Domain and Domain + path.
+1. In "Applies to", below the Scope, Domain, Include subdomains and Path fields, there is a heading "Excluded sites", styled like the one in Settings, and under it a text box labelled "Domains, one per line" with the placeholder `example.com` and the hint "The rule does nothing on these sites. Subdomains are included." It is there for All sites, Domain and Domain + path.
 2. Type `example.com`: the rule is now unsaved (the • mark, Save is active). Save and reload the page: the text box still has `example.com`.
 3. Bookmark `https://example.com/p?utm_source=x` and `https://www.example.com/p?utm_source=x`: both keep `utm_source`. Bookmark `https://example.org/p?utm_source=x`: it loses it.
 4. Put `https://example.com/p?utm_source=x` in "Try it": the URL is unchanged, "What changed" is empty, and the note says "This rule doesn't apply to this URL: the site is in its exceptions." This is the same with "All rules" and with "Current rule" selected. A URL on `example.org` is changed and has no such note.
@@ -311,3 +311,9 @@ Have a rule for all sites that removes `utm_*`, and bookmarks on `example.com`, 
 3. The rule list has the heading "Rules" with the left chevron at its right, and below it the "Add rule" button with a plus icon. Collapsing keeps the chevron in the top right corner and puts the plus below it, and nothing else moves.
 4. The trash button of a rule is small and grey, and turns red, with a light red background, on hover and on keyboard focus.
 5. In Settings, the Excluded sites box starts two lines high and cannot be made smaller than that. It grows while you type, up to ten lines, and then scrolls. It can still be resized by hand. With a long list saved, it has its full height when you open Settings.
+
+### Rule editor: fields
+
+1. "Applies to" is one column, each field with its label above it and the same space between all of them: Scope, Domain, the checkbox "Include subdomains", and, for "Domain + path", Path with its hint. A message about a field appears right under that field.
+2. The rule's Excluded sites box starts two lines high, cannot be made smaller, and grows with its text up to ten lines, then scrolls. It can be resized by hand. Open another rule and come back: a long list has its full height at once.
+3. The Scope menu is only as wide as its text, not the whole width, and its text is as large as the text in the Name and Domain boxes. The "Add action…" menu has the same text size.
