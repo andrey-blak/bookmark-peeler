@@ -17,12 +17,10 @@ The decisions behind the add-on.
 
 ## Storage
 
-- Rules and settings are in `storage.sync`, with a `schemaVersion`. There is no addon setting for it.
-- Everything syncs, settings included.
-- Every rule is its own item, so a change to one rule does not overwrite another when devices sync.
-- A rule or total size over the limits of `storage.sync` is refused with a message.
-- If only one side has rules, they are used without asking. If this device and the synced storage have different rules, a dialog appears: "Merge" (all rules from both sides, a rule on both sides from the synced side), "Use this device's rules" or "Use the synced rules".
-- A rule with errors stays in storage so it can be fixed, but is not applied. Warnings do not stop a rule.
+- The settings are in `storage.sync` and the rules are in `storage.local`, each with a `schemaVersion`. There is no addon setting for it.
+- The settings are one item of `storage.sync`. When they do not fit in it (a very long list of excluded sites), the save is refused with a message.
+- There is no migration from earlier storage layouts: the add-on has no users of them.
+- A rule with errors stays in storage so it can be fixed, but is not applied.
 - Storage with a newer schema version than the code knows is never read or overwritten.
 
 ## When bookmarks are cleaned
@@ -49,6 +47,7 @@ The decisions behind the add-on.
 
 ## Import, export and presets
 
-- Export saves the stored format as a JSON file; Import reads it through the same loading code as storage, so every file is validated.
-- "Add to my rules" keeps the current settings; "Replace my rules" replaces the rules and the settings with the file's.
+- There is one file format. Export lets the user choose the rules, the settings, or both; Import reads the file through the same loading code as storage, so every file is validated, and works out from the file what it has, so there is no file type to choose.
+- The import dialog has the checkboxes "Settings" and "Rules", and "Replace my rules" or "Add to my rules" only while "Rules" is ticked. The settings are always replaced as a whole, the list of excluded sites included. A file with only settings is imported without a dialog.
+- Rule ids are 8 random hexadecimal characters. They only need to be unique within one list: a repeated id is replaced when a file is imported.
 - A preset opens as a new unsaved rule, to review and Save.

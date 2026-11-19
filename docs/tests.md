@@ -11,7 +11,7 @@ The tests are in `tests/unit/`, one file per module:
 
 - `src/core/`: query parsing, scope matching, actions, the cleaning engine, the stored schema and its validation.
 - `src/background/`: what happens when a bookmark is created or edited (including the guard against the add-on's own writes) and the bulk URL changes, with a fake browser.
-- `src/core/` also has how the rules are laid out in `storage.sync` and the limits, and the move from `storage.local`; `src/storage/` has the store and the migrator, tested with a storage area in memory.
+- `src/storage/` has the store, tested with two storage areas in memory.
 - `src/options/`: the logic of the rule list and of selecting several rules, the rule editor, the "Try it" panel, import and export, the presets, and the scan and undo of "Clean existing bookmarks", without DOM.
 - The manifest: permissions, background page, options page and icons.
 
@@ -25,17 +25,15 @@ Repeat the tests after a change in the area they cover.
 A temporary add-on, and its stored rules, are gone after Firefox restarts.
 
 Several tests put rules into storage from the add-on's own console (in `about:debugging#/runtime/this-firefox` click "Inspect" next to Bookmark Peeler).
-The rules live in `storage.sync`, one item per rule, see [storage.md](storage.md).
+The settings live in `storage.sync` and the rules in `storage.local`, see [storage.md](storage.md).
 Paste this helper into the console once; it replaces all rules with the ones you give it:
 
 ```js
 async function seed(rules, settings = { cleanOnEdit: false }) {
-  await browser.storage.sync.clear();
-  await browser.storage.sync.set({
+  await browser.storage.sync.set({ schemaVersion: 1, settings });
+  await browser.storage.local.set({
     schemaVersion: 1,
-    settings,
-    order: rules.map((r, i) => "r" + i),
-    ...Object.fromEntries(rules.map((r, i) => ["rule:r" + i, { id: "r" + i, ...r }]))
+    rules: rules.map((r, i) => ({ id: "r" + i, ...r }))
   });
 }
 ```
@@ -147,14 +145,16 @@ If the page looks unstyled or shows an old version after a change, reload the ad
 Have two or three rules, for example "Tracking parameters" and the Example visibility rule, and one rule with an error.
 
 1. The header has Presets, Import… and Export buttons on the right, and the rule list has no import or export buttons.
-2. Export: a file `bookmark-peeler-rules.json` is downloaded. Open it: it holds `schemaVersion`, `settings` and all the rules, indented.
-3. Import…: the file chooser shows JSON files by default. Choose the exported file: a dialog says how many rules it holds, how many have errors, and how many already exist.
-4. "Add to my rules": the imported rules are appended, the existing ones stay, and none has the id of another (open the exported file and the stored data to compare if you wish). An Undo message appears; Undo (or Ctrl+Z) removes the added rules again.
-5. Change the settings in the console (`await browser.storage.sync.set({ settings: { cleanOnEdit: true } })`), then choose "Add to my rules" again: the settings stay as they were. Choose "Replace my rules" with a file that has `"cleanOnEdit": false`: the rules and the settings are those of the file, and Undo brings back the previous rules and the previous settings.
-6. Cancel, or Esc, in the dialog imports nothing. With unsaved changes in the editor, choosing Add or Replace asks Save, Discard or Cancel first.
-7. Files that must be refused, each with a short message at the bottom of the page that disappears by itself after a few seconds, nothing left above the list, and no change: a text file, a file with `{ broken`, a JSON file such as `[]` or `{}`, and a rules file with `"schemaVersion": 2`.
-8. Presets opens a menu with "Tracking parameters" and "YouTube share parameters", each with a one-line description. It closes with Esc and with a click elsewhere. Choosing one opens it in the editor as a new unsaved rule, named like the preset, with its actions; Save stores it. With unsaved changes in the editor, the usual Save, Discard or Cancel prompt appears.
-9. Try the tracking preset in "Try it" with `https://example.com/?a=1&utm_source=x&fbclid=y`: the result is `https://example.com/?a=1`.
+2. Export: a dialog has the checkboxes "Rules" and "Settings", both ticked, and the buttons Export and Cancel. Export downloads `bookmark-peeler.json`. Open it: it holds `schemaVersion`, `settings` and all the rules, indented. With only "Rules" ticked the file is `bookmark-peeler-rules.json` and has no `settings`; with only "Settings" it is `bookmark-peeler-settings.json` and has no `rules`. With neither ticked, Export is disabled. Cancel, or Esc, downloads nothing.
+3. Import…: the file chooser shows JSON files by default. Choose the file with both parts: a dialog says how many rules it holds and that it has settings, how many rules have errors, and how many already exist. It has the checkboxes "Settings" and "Rules", both ticked. Under "Rules" are the choices "Replace my rules" and "Add to my rules" (chosen).
+4. Import with "Add to my rules" and "Settings" unticked: the imported rules are appended, the existing ones stay, and none has the id of another (open the exported file and the stored data to compare if you wish). The settings stay as they were. An Undo message "Imported N rules." appears; Undo (or Ctrl+Z) removes the added rules again.
+5. Change a setting and the Excluded sites list, then import the file with "Replace my rules" and "Settings" ticked: the rules and the settings, the excluded sites included, are those of the file. The message says "Imported N rules and the settings.", and Undo brings back the previous rules and the previous settings.
+6. Untick "Rules": the choices Replace and Add disappear, and the settings are imported alone. With both unticked, Import is disabled. A file made with only "Rules" has no "Settings" checkbox. A file made with only "Settings" shows no dialog: the settings are replaced at once with the message "Imported the settings.", and Undo brings the old ones back.
+7. Cancel, or Esc, in the dialog imports nothing. With unsaved changes in the editor, choosing Import asks Save, Discard or Cancel first.
+8. Files that must be refused, each with a short message at the bottom of the page that disappears by itself after a few seconds, nothing left above the list, and no change: a text file, a file with `{ broken`, a JSON file such as `[]` or `{}` or `{"schemaVersion": 1}`, and a file with `"schemaVersion": 2`.
+9. A file saved by an earlier version, with `schemaVersion`, `settings` and `rules`, imports like the file with both parts.
+10. Presets opens a menu with "Tracking parameters" and "YouTube share parameters", each with a one-line description. It closes with Esc and with a click elsewhere. Choosing one opens it in the editor as a new unsaved rule, named like the preset, with its actions; Save stores it. With unsaved changes in the editor, the usual Save, Discard or Cancel prompt appears.
+11. Try the tracking preset in "Try it" with `https://example.com/?a=1&utm_source=x&fbclid=y`: the result is `https://example.com/?a=1`.
 
 ### Clean when edited
 
@@ -216,22 +216,16 @@ Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$`
 5. The Settings button still shows the settings; going back shows the invitation again when there are still no rules. Import a file with rules: the invitation goes away.
 6. With some rules in the list but none selected, the editor invitation ("Select a rule to edit it, or add a new one.") is shown, not the empty one.
 
-### Rules in storage.sync
+### Where the data is stored
 
-1. Add a rule in the main page and save it. In the add-on's console, `await browser.storage.sync.get(null)` shows `schemaVersion`, `settings`, `order` (the ids) and one item `rule:<id>` per rule, and nothing is stored in `storage.local` for the rules.
-2. Change one rule and save: in the console, only that `rule:<id>` item changes. Move a rule in the list: only `order` changes. Delete a rule: its `rule:<id>` item is gone and `order` no longer lists it.
-3. This works with Firefox Sync switched off, and with "Add-ons" not selected in Firefox Sync settings: rules are stored and read as usual.
-4. With two Firefox profiles signed in to the same account, "Add-ons" selected in Firefox Sync settings and the add-on loaded in both: add a rule in one profile and use "Sync Now". The rule appears in the other profile, and the main page there, if it is open, shows it without a reload. Reorder, switch off, edit and delete a rule on one side and check the other side follows. Settings (the "clean when URL is edited" checkbox) follow too.
-5. A rule that is too large is refused: add a Remove action to a rule and paste about 9000 characters into its Parameter field, then save. A message at the bottom says the rule is too large to be saved, with the rule's name (at most 40 characters of it, then an ellipsis), the rule keeps its unsaved state in the editor, and nothing is written. Importing a file with such a rule, and "Add to my rules", is refused in the same way, with nothing changed.
-6. Too many rules is refused: import a file with about 250 rules (each its own `id`). A message says there are too many rules to be saved. With a few hundred small rules in total, or with rules together over 100 KiB, a message says the rules are too large to be saved.
-7. Rules from an earlier version: in the console, `await browser.storage.sync.clear()`, then `await browser.storage.local.set({ schemaVersion: 1, settings: { cleanOnEdit: false }, rules: [{ id: "old1", name: "Old rule", scope: { type: "all" }, actions: [{ type: "remove", parameter: "utm_*" }] }] })` and `await browser.storage.local.remove("syncMigrated")`. Reload the main page: the old rule is there and no question is asked. `await browser.storage.sync.get(null)` now has `rule:old1`, and `storage.local` has `syncMigrated: true`. Reload again: nothing changes.
-8. Different rules on both sides: put a rule `old1` in `storage.local` as in step 7 without clearing `storage.sync`, which holds other rules. Reload: a dialog says how many rules this device has and how many are synced, with "Merge", "Use this device's rules" and "Use the synced rules".
-   - Merge: the synced rules come first in their order, then the rule that was only on this device.
-   - Use this device's rules: only the old rules are left, and the synced ones are gone from `storage.sync`.
-   - Use the synced rules: nothing changes in `storage.sync`.
-   - Closing the dialog with Esc leaves everything as it was, and it is asked again the next time the page opens. After any choice, it is not asked again.
-   Between reloads, set `syncMigrated` back with `await browser.storage.local.remove("syncMigrated")` to repeat.
-9. The background page also moves the rules by itself: with rules only in `storage.local` and `syncMigrated` removed, bookmark a page without opening the main page. The rule is applied to the new bookmark.
+1. Add a rule in the main page and save it. In the add-on's console, `await browser.storage.local.get(null)` shows `schemaVersion` and `rules`, with the rule in it, and `await browser.storage.sync.get(null)` shows `schemaVersion` and `settings`, and no rules.
+2. Change a rule and save: only `storage.local` is written. Tick "Also clean a bookmark when its URL is edited": only `storage.sync` is written.
+3. This works with Firefox Sync switched off, and with "Add-ons" not selected in Firefox Sync settings: everything is stored and read as usual.
+4. With two Firefox profiles signed in to the same account, "Add-ons" selected in Firefox Sync settings and the add-on loaded in both: change a setting in one profile and use "Sync Now". The setting changes in the other profile, and its main page, if open, shows it without a reload. The rules do not move.
+5. Many rules are no problem: import a file with several hundred rules, each with its own `id`. They are all saved, and the page still works.
+6. Settings that are too large are refused: paste about 500 different domains into "Excluded sites" in Settings and leave the box. A message says the settings are too large to be saved and to shorten the list of excluded sites. After a reload the box has the last saved list.
+7. The main page and the background page read both areas: with rules in `storage.local` and a rule that removes `utm_*`, bookmark a page with `?utm_source=x` without opening the main page. The parameter is removed.
+8. If the main page is open in two tabs, a change of a rule in one tab shows in the other.
 
 ### Rule names
 

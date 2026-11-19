@@ -23,12 +23,12 @@ import {
 import { newDraft, duplicateDraft, isSaveKey } from "./editor-model.js";
 import { clickSelection, extendSelection } from "./selection.js";
 import { createEditor } from "./editor.js";
-import { exportFile, parseImport, summarizeImport, mergeImport } from "./transfer.js";
+import { exportFile, parseImport, summarizeImport, applyImport } from "./transfer.js";
 import { PRESETS, presetDraft } from "./presets.js";
 import { createSettings } from "./settings.js";
 import { validSites } from "../core/exclusions.js";
 import { createBulkClean } from "./bulk-dialog.js";
-import { store, migrator } from "../storage/default.js";
+import { store } from "../storage/default.js";
 import { StoreError } from "../storage/store.js";
 import { getPref, setPref } from "./prefs.js";
 
@@ -203,18 +203,12 @@ async function save(rules, options) {
 }
 
 /** The message for a write that the store refused, or null when the error is something else. */
-function storeProblem(error, rules) {
+function storeProblem(error) {
   if (!(error instanceof StoreError)) return null;
 
   switch (error.code) {
-    case "rule-too-large": {
-      const rule = rules.find(r => r.id === error.ruleId);
-      return `${rule ? `“${ellipsize(ruleTitle(rule), MESSAGE_NAME_MAX)}”` : "A rule"} is too large to be saved.`;
-    }
-    case "too-large":
-      return "Your rules are too large to be saved. Delete some rules first.";
-    case "too-many":
-      return "There are too many rules to be saved. Delete some rules first.";
+    case "settings-too-large":
+      return "The settings are too large to be saved. Shorten the list of excluded sites.";
     case "unsupported":
       return "These rules were saved by a newer version of Bookmark Peeler, so they can't be changed here.";
     default:
@@ -228,7 +222,7 @@ async function saveConfig(next, { rerender = true } = {}) {
     await store.writeConfig(next);
   } catch (error) {
     console.error("Bookmark Peeler:", error);
-    showMessage(storeProblem(error, next.rules) ?? "Couldn't save your changes. Reload the page and try again.");
+    showMessage(storeProblem(error) ?? "Couldn't save your changes. Reload the page and try again.");
     return false;
   }
 
@@ -627,20 +621,25 @@ function download(file) {
 
 const IMPORT_PROBLEMS = {
   "not-json": "That file isn't valid JSON, so it can't be imported.",
-  "not-config": "That file isn't a Bookmark Peeler rules file.",
+  "not-config": "That file isn't a Bookmark Peeler file.",
   unsupported: "That file was saved by a newer version of Bookmark Peeler, so it can't be imported.",
 };
 
 const count = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 
-/** Shows what the file holds and returns the choice: "add", "replace" or "cancel". */
+/**
+ * Shows what the file holds and returns what to import: { rules: "add" | "replace" | "none", settings: boolean },
+ * or null when the dialog was cancelled. A file with only settings needs no question, so the dialog is not shown.
+ */
 function askImport(filename, summary) {
-  const lines = [`${filename}: ${count(summary.total, "rule", "rules")}.`];
-  if (summary.withErrors > 0) {
-    lines.push(`${count(summary.withErrors, "has errors and isn't", "have errors and aren't")} applied until fixed.`);
+  if (!summary.rules) return Promise.resolve({ rules: "none", settings: true });
+
+  const lines = [`${filename}: ${count(summary.rules.total, "rule", "rules")}${summary.settings ? " and settings" : ""}.`];
+  if (summary.rules.withErrors > 0) {
+    lines.push(`${count(summary.rules.withErrors, "has errors and isn't", "have errors and aren't")} applied until fixed.`);
   }
-  if (summary.clashes > 0) {
-    lines.push(`${count(summary.clashes, "rule already exists", "rules already exist")}; when added, they get new ids.`);
+  if (summary.rules.clashes > 0) {
+    lines.push(`${count(summary.rules.clashes, "rule already exists", "rules already exist")}; when added, they get new ids.`);
   }
 
   $("import-lines").replaceChildren(...lines.map(text => {
@@ -650,14 +649,51 @@ function askImport(filename, summary) {
   }));
 
   const dialog = $("import-dialog");
+  const form = dialog.querySelector("form");
+  const settingsChoice = () => summary.settings && $("import-settings").checked;
+  const rulesChoice = () => ($("import-rules").checked ? form.elements["import-how"].value : "none");
+  const update = () => {
+    // Hidden, not removed, so that the dialog keeps its size.
+    $("import-how").classList.toggle("concealed", !$("import-rules").checked);
+    $("import-go").disabled = rulesChoice() === "none" && !settingsChoice();
+  };
+
+  $("import-rules-row").hidden = false;
+  $("import-settings-row").hidden = !summary.settings;
+  $("import-rules").checked = true;
+  $("import-settings").checked = true;
+  form.elements["import-how"].value = "add";
+  update();
+  form.onchange = update;
+
   return new Promise(resolve => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "cancel"), { once: true });
+    dialog.addEventListener("close", () => {
+      resolve(dialog.returnValue === "import" ? { rules: rulesChoice(), settings: settingsChoice() } : null);
+    }, { once: true });
     dialog.returnValue = "";
     dialog.showModal();
   });
 }
 
-async function importRules(file) {
+/** Shows what can be exported and downloads the file. */
+function exportData() {
+  if (!config) return;
+
+  const dialog = $("export-dialog");
+  const go = $("export-go");
+  const update = () => { go.disabled = !$("export-rules").checked && !$("export-settings").checked; };
+
+  update();
+  dialog.querySelector("form").onchange = update;
+  dialog.addEventListener("close", () => {
+    if (dialog.returnValue !== "export") return;
+    download(exportFile(config, { rules: $("export-rules").checked, settings: $("export-settings").checked }));
+  }, { once: true });
+  dialog.returnValue = "";
+  dialog.showModal();
+}
+
+async function importFile(file) {
   if (!config) return;
 
   const parsed = parseImport(await file.text());
@@ -666,20 +702,22 @@ async function importRules(file) {
     return;
   }
 
-  const choice = await askImport(file.name, summarizeImport(parsed.config, config.rules));
-  if (choice !== "add" && choice !== "replace") return;
+  const choice = await askImport(file.name, summarizeImport(parsed, config.rules));
+  if (choice === null) return;
   if (!(await confirmLeave())) return;
 
   const previous = config;
-  const next = choice === "add"
-    ? { ...config, rules: mergeImport(config.rules, parsed.config.rules) }
-    : parsed.config; // Replace takes the settings of the file too; Add keeps the current ones.
+  const next = applyImport(config, parsed, choice);
   if (!(await saveConfig(next, { rerender: false }))) return;
 
   setSelected(null);
   editor.close();
   render();
-  showUndo(`Imported ${count(parsed.config.rules.length, "rule", "rules")}.`, () => restoreConfig(previous));
+
+  const parts = [];
+  if (choice.rules !== "none" && parsed.rules) parts.push(count(parsed.rules.length, "rule", "rules"));
+  if (choice.settings && parsed.settings) parts.push("the settings");
+  showUndo(`Imported ${parts.join(" and ")}.`, () => restoreConfig(previous));
 }
 
 async function restoreConfig(previous) {
@@ -723,55 +761,6 @@ function renderPresets() {
 
 function closeMenus() {
   for (const menu of document.querySelectorAll(".menu[open]")) menu.open = false;
-}
-
-// --- Moving the rules of an earlier version to storage.sync ---
-
-/** Shows what is on both sides and returns the choice: "merge", "local", "sync", or "cancel". */
-function askMigration({ local, sync }) {
-  const lines = [
-    `This device has ${count(local.rules.length, "rule", "rules")}. Your synced rules have ${count(sync.rules.length, "rule", "rules")}.`,
-    "Merge keeps all of them, and a rule that is on both sides comes from the synced side.",
-  ];
-
-  $("migrate-lines").replaceChildren(...lines.map(text => {
-    const item = document.createElement("li");
-    item.textContent = text;
-    return item;
-  }));
-
-  const dialog = $("migrate-dialog");
-  return new Promise(resolve => {
-    dialog.addEventListener("close", () => resolve(dialog.returnValue || "cancel"), { once: true });
-    dialog.returnValue = "";
-    dialog.showModal();
-  });
-}
-
-/**
- * Rules kept by an earlier version move to storage.sync, once.
- * That needs no answer unless this device and the synced storage have different rules, which the user is asked about.
- * Closing the dialog without a choice leaves things as they are, and it asks again the next time the page opens.
- */
-async function migrateRules() {
-  const result = await migrator.run();
-
-  if (result.status === "failed") {
-    const problem = storeProblem(result.error, []);
-    showMessage(`Couldn't move your rules to the new storage.${problem ? ` ${problem}` : ""}`);
-    return;
-  }
-  if (result.status !== "ask") return;
-
-  const choice = await askMigration(result);
-  if (choice === "cancel") return;
-
-  try {
-    await migrator.resolve(choice, result);
-  } catch (error) {
-    console.error("Bookmark Peeler:", error);
-    showMessage(storeProblem(error, []) ?? "Couldn't move your rules to the new storage.");
-  }
 }
 
 // --- Events ---
@@ -950,9 +939,7 @@ $("add").addEventListener("click", addRule);
 $("empty-add").addEventListener("click", addRule);
 $("settings-button").addEventListener("click", () => showView(view === "settings" ? "rules" : "settings"));
 
-$("export").addEventListener("click", () => {
-  if (config) download(exportFile(config));
-});
+$("export").addEventListener("click", exportData);
 
 $("import").addEventListener("click", () => {
   if (config) $("import-file").click();
@@ -961,7 +948,7 @@ $("import").addEventListener("click", () => {
 $("import-file").addEventListener("change", event => {
   const [file] = event.target.files;
   event.target.value = ""; // so that the same file can be chosen again
-  if (file) importRules(file);
+  if (file) importFile(file);
 });
 
 document.addEventListener("click", event => {
@@ -988,15 +975,13 @@ window.addEventListener("beforeunload", event => {
 });
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === "sync") load({ onlyIfChanged: true });
+  if (area === "sync" || area === "local") load({ onlyIfChanged: true });
 });
 
 applyCollapsed();
 renderPresets();
 editor.close();
-migrateRules()
-  .catch(error => console.error("Bookmark Peeler:", error))
-  .then(() => load())
+load()
   .catch(error => {
     console.error("Bookmark Peeler:", error);
     showNotice("Couldn't load your rules.");

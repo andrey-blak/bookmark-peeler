@@ -15,105 +15,132 @@ const rule = (id, extra = {}) => ({
 const config = (rules, settings = { cleanOnEdit: false }) => normalizeConfig({ schemaVersion: 1, settings, rules });
 const writes = area => area.calls.filter(([name]) => name === "set" || name === "remove");
 
+function setup({ sync = {}, local = {} } = {}) {
+  const areas = { sync: fakeArea(sync), local: fakeArea(local) };
+  return { ...areas, store: createStore(areas) };
+}
+
 describe("loadStored", () => {
   test("empty storage reads as the defaults", async () => {
-    const store = createStore(fakeArea());
+    const { store } = setup();
     assert.deepEqual(readConfig(await store.loadStored()), { status: "ok", config: normalizeConfig({}) });
   });
 
   test("gives back what writeConfig wrote, in the same shape the rest of the code reads", async () => {
-    const store = createStore(fakeArea());
-    const written = config([rule("b"), rule("a")], { cleanOnEdit: true });
+    const { store } = setup();
+    const written = config([rule("b"), rule("a")], { cleanOnEdit: true, undoSeconds: 20, excludedSites: ["example.com"] });
     await store.writeConfig(written);
     assert.deepEqual(readConfig(await store.loadStored()), { status: "ok", config: written });
+  });
+
+  test("the settings come from storage.sync and the rules from storage.local", async () => {
+    const { store } = setup({
+      sync: { schemaVersion: 1, settings: { cleanOnEdit: true } },
+      local: { schemaVersion: 1, rules: [rule("a")] },
+    });
+    const { config: read } = readConfig(await store.loadStored());
+    assert.equal(read.settings.cleanOnEdit, true);
+    assert.deepEqual(read.rules.map(r => r.id), ["a"]);
+  });
+
+  test("settings without any rules yet, and rules without any settings yet, both read", async () => {
+    const onlySync = setup({ sync: { schemaVersion: 1, settings: { cleanOnEdit: true } } });
+    assert.equal(readConfig(await onlySync.store.loadStored()).config.settings.cleanOnEdit, true);
+
+    const onlyLocal = setup({ local: { schemaVersion: 1, rules: [rule("a")] } });
+    assert.equal(readConfig(await onlyLocal.store.loadStored()).config.rules.length, 1);
+  });
+
+  test("a schema version this code does not know, in either area, is reported as unsupported", async () => {
+    for (const area of ["sync", "local"]) {
+      const { store } = setup({ [area]: { schemaVersion: 2 } });
+      assert.equal(readConfig(await store.loadStored()).status, "unsupported", area);
+    }
   });
 });
 
 describe("writeConfig", () => {
-  test("the first write sets every item", async () => {
-    const area = fakeArea();
-    await createStore(area).writeConfig(config([rule("a")]));
-    assert.deepEqual(Object.keys(area.data).sort(), ["order", "rule:a", "schemaVersion", "settings"]);
+  test("the first write puts the settings in sync and the rules in local, and nothing else anywhere", async () => {
+    const { store, sync, local } = setup();
+    await store.writeConfig(config([rule("a")]));
+    assert.deepEqual(Object.keys(sync.data).sort(), ["schemaVersion", "settings"]);
+    assert.deepEqual(Object.keys(local.data).sort(), ["rules", "schemaVersion"]);
   });
 
   test("writing the same config again writes nothing", async () => {
-    const area = fakeArea();
-    const store = createStore(area);
+    const { store, sync, local } = setup();
     await store.writeConfig(config([rule("a")]));
-    area.calls.length = 0;
+    sync.calls.length = 0;
+    local.calls.length = 0;
 
     await store.writeConfig(config([rule("a")]));
-    assert.deepEqual(writes(area), []);
+    assert.deepEqual(writes(sync), []);
+    assert.deepEqual(writes(local), []);
   });
 
-  test("a changed rule writes only that rule", async () => {
-    const area = fakeArea();
-    const store = createStore(area);
-    await store.writeConfig(config([rule("a"), rule("b")]));
-    area.calls.length = 0;
+  test("changing a rule writes only to storage.local", async () => {
+    const { store, sync, local } = setup();
+    await store.writeConfig(config([rule("a")]));
+    sync.calls.length = 0;
+    local.calls.length = 0;
 
-    await store.writeConfig(config([rule("a"), rule("b", { name: "B" })]));
-    assert.deepEqual(writes(area), [["set", ["rule:b"]]]);
+    await store.writeConfig(config([rule("a", { name: "A" })]));
+    assert.deepEqual(writes(sync), []);
+    assert.deepEqual(writes(local), [["set", ["schemaVersion", "rules"]]]);
   });
 
-  test("a deleted rule is removed first and the order is rewritten after", async () => {
-    const area = fakeArea();
-    const store = createStore(area);
-    await store.writeConfig(config([rule("a"), rule("b")]));
-    area.calls.length = 0;
-
+  test("changing a setting writes only to storage.sync", async () => {
+    const { store, sync, local } = setup();
     await store.writeConfig(config([rule("a")]));
-    assert.deepEqual(writes(area), [["remove", ["rule:b"]], ["set", ["order"]]]);
-    assert.equal("rule:b" in area.data, false);
+    sync.calls.length = 0;
+    local.calls.length = 0;
+
+    await store.writeConfig(config([rule("a")], { cleanOnEdit: true }));
+    assert.deepEqual(writes(local), []);
+    assert.deepEqual(writes(sync), [["set", ["schemaVersion", "settings"]]]);
   });
 
   test("the items of other writers are not touched", async () => {
-    const area = fakeArea({ other: 1 });
-    await createStore(area).writeConfig(config([rule("a")]));
-    assert.equal(area.data.other, 1);
+    const { store, sync, local } = setup({ sync: { other: 1 }, local: { other: 2, syncMigrated: true } });
+    await store.writeConfig(config([rule("a")]));
+    assert.equal(sync.data.other, 1);
+    assert.equal(local.data.other, 2);
+    assert.equal(local.data.syncMigrated, true);
   });
 
-  test("a rule that is too large is refused and nothing is written", async () => {
-    const area = fakeArea();
-    const store = createStore(area);
-    await store.writeConfig(config([rule("a")]));
-    area.calls.length = 0;
+  test("many rules are no problem for storage.local", async () => {
+    const { store } = setup();
+    const rules = [];
+    for (let i = 0; i < 600; i++) rules.push(rule(`r${i}`, { actions: [{ type: "remove", parameter: "x".repeat(2000) }] }));
+    await store.writeConfig(config(rules));
+    assert.equal(readConfig(await store.loadStored()).config.rules.length, 600);
+  });
 
-    // Names are cut to a few dozen characters, so the size comes from a long parameter.
-    const huge = rule("b", { actions: [{ type: "remove", parameter: "x".repeat(9000) }] });
-    await assert.rejects(store.writeConfig(config([rule("a"), huge])), error => {
+  test("settings that do not fit in one item of storage.sync are refused and nothing is written", async () => {
+    const { store, sync, local } = setup();
+    const sites = Array.from({ length: 1000 }, (_, i) => `site-number-${i}.example.com`);
+
+    await assert.rejects(store.writeConfig(config([rule("a")], { excludedSites: sites })), error => {
       assert.ok(error instanceof StoreError);
-      assert.equal(error.code, "rule-too-large");
-      assert.equal(error.ruleId, "b");
+      assert.equal(error.code, "settings-too-large");
       return true;
     });
-    assert.deepEqual(writes(area), []);
-  });
-
-  test("too much in total is refused and nothing is written", async () => {
-    const area = fakeArea();
-    const rules = [];
-    for (let i = 0; i < 15; i++) rules.push(rule(`r${i}`, { actions: [{ type: "remove", parameter: "x".repeat(7000) }] }));
-
-    await assert.rejects(createStore(area).writeConfig(config(rules)), error => error.code === "too-large");
-    assert.deepEqual(writes(area), []);
-  });
-
-  test("too many rules is refused", async () => {
-    const rules = [];
-    for (let i = 0; i < 250; i++) rules.push(rule(`00000000-0000-4000-8000-${String(i).padStart(12, "0")}`));
-    await assert.rejects(createStore(fakeArea()).writeConfig(config(rules)), error => error.code === "too-many");
+    assert.deepEqual(writes(sync), []);
+    assert.deepEqual(writes(local), []);
   });
 
   test("storage written with a schema version this code does not know is never overwritten", async () => {
-    const area = fakeArea({ schemaVersion: 2, order: [], settings: {} });
-    await assert.rejects(createStore(area).writeConfig(config([rule("a")])), error => error.code === "unsupported");
-    assert.deepEqual(writes(area), []);
+    for (const area of ["sync", "local"]) {
+      const { store, sync, local } = setup({ [area]: { schemaVersion: 2 } });
+      await assert.rejects(store.writeConfig(config([rule("a")])), error => error.code === "unsupported", area);
+      assert.deepEqual(writes(sync), [], area);
+      assert.deepEqual(writes(local), [], area);
+    }
   });
 
   test("a failing storage is reported to the caller", async () => {
-    const area = fakeArea();
-    area.set = async () => { throw new Error("disk full"); };
-    await assert.rejects(createStore(area).writeConfig(config([rule("a")])), /disk full/);
+    const { store, local } = setup();
+    local.set = async () => { throw new Error("disk full"); };
+    await assert.rejects(store.writeConfig(config([rule("a")])), /disk full/);
   });
 });

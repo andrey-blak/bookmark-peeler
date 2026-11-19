@@ -32,7 +32,8 @@ export function defaultConfig() {
 
 const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const isText = value => typeof value === "string";
-const newId = () => crypto.randomUUID();
+/** A new rule id: 8 random characters of lower-case hexadecimal. Only unique within one list, and normalising replaces a repeated id. */
+export const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), byte => byte.toString(16).padStart(2, "0")).join("");
 
 // --- Normalisation ---
 

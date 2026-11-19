@@ -1,13 +1,15 @@
-// The rules and settings in storage.sync. The storage area is passed in, so this can be unit-tested.
+// The settings in storage.sync and the rules in storage.local. The two storage areas are passed in, so this can be unit-tested.
 //
-// storage.sync is the only place the rules live. It works like storage.local when Firefox Sync is off,
-// and the rules reach other devices when "Add-ons" is selected in Firefox Sync settings.
+// The settings follow the user between devices when "Add-ons" is selected in Firefox Sync settings, and sync works like local without it.
+// The rules stay on the device, so they are not limited by the size of storage.sync.
 
-import { assemble, toItems, diffItems, checkLimits } from "../core/sync-layout.js";
 import { readConfig } from "../core/schema.js";
 
+/** The size of one item of storage.sync in Firefox, in bytes: the length of the key plus the length of the JSON of the value. */
+const SYNC_ITEM_BYTES = 8_192;
+
 /**
- * Why a write was refused. `code` is "rule-too-large" (with `ruleId`), "too-large", "too-many",
+ * Why a write was refused. `code` is "settings-too-large" (the settings do not fit in one item of storage.sync),
  * or "unsupported" when the stored data comes from a newer version.
  */
 export class StoreError extends Error {
@@ -19,29 +21,55 @@ export class StoreError extends Error {
   }
 }
 
-export function createStore(area) {
+// A schema version is "known" when it is missing or a supported number. Of two versions, an unknown one wins, so it is reported.
+const pickVersion = (a, b) => {
+  const isKnown = version => version === undefined || version === 1;
+  if (!isKnown(a)) return a;
+  if (!isKnown(b)) return b;
+  return a ?? b;
+};
+
+function assemble(syncItems, localItems) {
+  const schemaVersion = pickVersion(syncItems.schemaVersion, localItems.schemaVersion);
+  if (schemaVersion === undefined) return {};
+  return { schemaVersion, settings: syncItems.settings, rules: localItems.rules };
+}
+
+// Compared field by field: the order of the keys in what storage returns is not guaranteed.
+const same = (stored, next) => Object.keys(next).every(key => JSON.stringify(stored[key]) === JSON.stringify(next[key]));
+
+/**
+ * @param areas.sync the storage.sync area, for the settings
+ * @param areas.local the storage.local area, for the rules
+ */
+export function createStore({ sync, local }) {
+  const readItems = async () => ({
+    syncItems: await sync.get(["schemaVersion", "settings"]),
+    localItems: await local.get(["schemaVersion", "rules"]),
+  });
+
   return {
     /** What is stored, as { schemaVersion, settings, rules } for readConfig. */
     async loadStored() {
-      return assemble(await area.get(null));
+      const { syncItems, localItems } = await readItems();
+      return assemble(syncItems, localItems);
     },
 
     /**
-     * Stores a config. Only what changed is written.
-     * Deleted rules are removed before the order is rewritten, so a failure part-way cannot bring a deleted rule back.
-     * A config that does not fit, or that would overwrite data from a newer version, is refused before anything is written.
+     * Stores a config. Only what changed is written, each part to its own area.
+     * Settings that do not fit, or a write over data from a newer version, are refused before anything is written.
      */
     async writeConfig(config) {
-      const current = await area.get(null);
-      if (readConfig(assemble(current)).status !== "ok") throw new StoreError("unsupported");
+      const { syncItems, localItems } = await readItems();
+      if (readConfig(assemble(syncItems, localItems)).status !== "ok") throw new StoreError("unsupported");
 
-      const next = toItems(config);
-      const check = checkLimits(next);
-      if (!check.ok) throw new StoreError(check.reason, { ruleId: check.ruleId });
+      const settingsItem = { schemaVersion: config.schemaVersion, settings: config.settings };
+      if ("settings".length + JSON.stringify(config.settings).length > SYNC_ITEM_BYTES) throw new StoreError("settings-too-large");
 
-      const { set, remove } = diffItems(current, next);
-      if (remove.length > 0) await area.remove(remove);
-      if (Object.keys(set).length > 0) await area.set(set);
+      const rulesItem = { schemaVersion: config.schemaVersion, rules: config.rules };
+
+      if (!same(syncItems, settingsItem)) await sync.set(settingsItem);
+      if (!same(localItems, rulesItem)) await local.set(rulesItem);
     },
   };
 }

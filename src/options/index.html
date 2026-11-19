@@ -15,8 +15,8 @@
         <summary>Presets</summary>
         <div id="presets-list" class="menu-list"></div>
       </details>
-      <button id="import" type="button" title="Add rules from a file, or replace the current ones">Import…</button>
-      <button id="export" type="button" title="Save all rules to a file">Export</button>
+      <button id="export" type="button" title="Save rules and settings to a file">Export…</button>
+      <button id="import" type="button" title="Bring rules and settings in from a file">Import…</button>
       <button id="settings-button" type="button" aria-pressed="false">Settings</button>
       <input id="import-file" type="file" accept=".json,application/json" hidden>
     </div>
@@ -79,25 +79,36 @@
     </form>
   </dialog>
 
-  <dialog id="migrate-dialog" aria-labelledby="migrate-title">
+  <dialog id="export-dialog" aria-labelledby="export-title">
     <form method="dialog">
-      <p id="migrate-title"><strong>Rules on this device and synced rules</strong></p>
-      <ul id="migrate-lines" class="lines"></ul>
+      <p id="export-title"><strong>Export</strong></p>
+      <div class="choices">
+        <label class="check"><input id="export-settings" type="checkbox" checked> Settings</label>
+        <label class="check"><input id="export-rules" type="checkbox" checked> Rules</label>
+      </div>
       <div class="buttons">
-        <button value="merge" autofocus>Merge</button>
-        <button value="local">Use this device's rules</button>
-        <button value="sync">Use the synced rules</button>
+        <button id="export-go" value="export" autofocus>Export</button>
+        <button value="cancel">Cancel</button>
       </div>
     </form>
   </dialog>
 
   <dialog id="import-dialog" aria-labelledby="import-title">
     <form method="dialog">
-      <p id="import-title"><strong>Import rules</strong></p>
+      <p id="import-title"><strong>Import</strong></p>
       <ul id="import-lines" class="lines"></ul>
+      <div id="import-settings-row" class="choices" hidden>
+        <label class="check"><input id="import-settings" type="checkbox" checked>Settings</label>
+      </div>
+      <div id="import-rules-row" class="choices" hidden>
+        <label class="check"><input id="import-rules" type="checkbox" checked>Rules</label>
+        <fieldset id="import-how" class="choices nested">
+          <label class="check"><input type="radio" name="import-how" value="replace"> Replace my rules</label>
+          <label class="check"><input type="radio" name="import-how" value="add" checked> Add to my rules</label>
+        </fieldset>
+      </div>
       <div class="buttons">
-        <button value="add" autofocus>Add to my rules</button>
-        <button value="replace">Replace my rules</button>
+        <button id="import-go" value="import" autofocus>Import</button>
         <button value="cancel">Cancel</button>
       </div>
     </form>

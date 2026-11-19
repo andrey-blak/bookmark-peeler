@@ -1,17 +1,15 @@
 # Stored data
 
-Everything the add-on keeps is in `storage.sync`, as a few kinds of items.
-The code that lays them out is `src/core/sync-layout.js`, and the code that reads, normalises and validates a config is `src/core/schema.js`.
+The settings are in `storage.sync`, so they follow the user between devices, and the rules are in `storage.local`, so they are not limited by the size of `storage.sync`.
+The code that puts them together is `src/storage/store.js`, and the code that reads, normalises and validates a config is `src/core/schema.js`.
 Types are JSON types; "default" is what normalisation fills in when the field is missing or has the wrong type.
 
-## Items in storage.sync
-
-| Item | Value | Meaning |
-|---|---|---|
-| `schemaVersion` | integer ≥ 1 | Version of this format. |
-| `settings` | object | Global options, see below. |
-| `order` | array of string | The ids of the rules, in the order they run. |
-| `rule:<id>` | rule | One item per rule, so a change to one rule never overwrites another when devices sync. |
+| Area | Item | Value | Meaning |
+|---|---|---|---|
+| `storage.sync` | `schemaVersion` | integer ≥ 1 | Version of this format. |
+| `storage.sync` | `settings` | object | Global options, see below. |
+| `storage.local` | `schemaVersion` | integer ≥ 1 | Version of this format. |
+| `storage.local` | `rules` | array of rule | The rules, in the order they run. |
 
 The rest of this page describes a config, `{ schemaVersion, settings, rules }`: what the add-on works with after reading the items, and what the export file holds.
 
@@ -33,7 +31,7 @@ The rest of this page describes a config, `{ schemaVersion, settings, rules }`: 
 
 | Field | Type | Required | Default | Meaning |
 |---|---|---|---|---|
-| `id` | string | no | random UUID | Unique among rules. A missing, empty or duplicate id is replaced. |
+| `id` | string | no | 8 random hexadecimal characters | Unique among rules. A missing, empty or duplicate id is replaced. |
 | `enabled` | boolean | no | `true` | Only `false` switches the rule off. |
 | `name` | string | no | none | Label shown in the UI. An empty or blank name is dropped, and a name longer than 64 characters is cut to 64 when the rule is read. |
 | `scope` | scope | yes | none | Which URLs the rule applies to. |
@@ -154,27 +152,18 @@ A rule with only warnings is applied.
 
 ## Loading
 
-- The `rule:<id>` items become the rules, in the order of the `order` item. A rule missing from the order is added at the end, in the order of its key. An id in the order without a rule, and an id listed twice, are dropped. This makes a list that another device changed at the same time readable.
+- The settings come from `storage.sync` and the rules from `storage.local`. Either may be missing: a missing part reads as its default.
 - Empty storage, or data without `schemaVersion`, gives the defaults.
-- A `schemaVersion` newer than the code knows, or not a positive integer, is reported as unsupported and is never read or overwritten.
-- Unknown fields are dropped, and invalid values are kept so that validation can report them.
+- A `schemaVersion` newer than the code knows, or not a positive integer, in either area, is reported as unsupported and is never read or overwritten.
+- Unknown fields are dropped, and invalid values are kept so that validation can report them. The one exception is `excludedSites`, where an entry that is not a plain domain is dropped.
 
 ## Writing
 
-Only the items that changed are written. Deleted rules are removed before the order is rewritten.
-A write that would break a limit of `storage.sync` is refused before anything is written. The size of an item is the length of its key plus the length of the JSON of its value.
-
-| Limit | Value | Refused as |
-|---|---|---|
-| One item | 8 KiB (8192 bytes) | a rule that is too large; for the `order` item, too many rules |
-| All items together | 100 KiB (102400 bytes) | too large in total |
-| Number of items | 512 | too many rules |
-
-## Moving from storage.local
-
-Earlier versions kept the rules in `storage.local`, as `schemaVersion`, `settings` and `rules`. They are moved to `storage.sync` once, and the local copy is left where it is. A flag `syncMigrated` in `storage.local` marks it done.
+Only the part that changed is written, the settings to `storage.sync` and the rules to `storage.local`. Items of other writers are not touched.
+The settings must fit in one item of `storage.sync`, 8 KiB (8192 bytes: the length of the key plus the length of the JSON of the value). A write over that is refused before anything is written, as "settings too large". The rules have no limit of the add-on's own: `storage.local` holds megabytes.
 
 ## Export file
 
-Export writes the same three keys as above (`schemaVersion`, `settings`, `rules`) as indented JSON, to `bookmark-peeler-rules.json`.
-Import reads a file the way storage is loaded, and refuses a file that is not JSON, has no `schemaVersion` or `rules`, or has an unsupported `schemaVersion`.
+Export asks what to put in the file: the rules, the settings, or both (both by default). The file is indented JSON with `schemaVersion` and the chosen parts, `settings` and `rules`, as above. It is named `bookmark-peeler.json` for both, `bookmark-peeler-rules.json` for the rules and `bookmark-peeler-settings.json` for the settings.
+Import finds out what the file has from its keys, so there is no type to choose. It needs a `schemaVersion` and a `rules` array, an object `settings`, or both. A part of another type is ignored. It refuses a file that is not JSON, has neither part, or has an unsupported `schemaVersion`.
+Each part is read the way storage is loaded. The dialog then lets the user choose what to apply: the rules are added to the current ones, replace them, or are left out, and the settings replace the current ones, the list of excluded sites included.

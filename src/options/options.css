@@ -435,6 +435,34 @@ dialog form p {
   margin: 0 0 12px;
 }
 
+dialog .choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+dialog .choices[hidden] {
+  display: none;
+}
+
+dialog .choices.nested {
+  margin: 0 0 0 24px;
+}
+
+dialog .choices.concealed {
+  visibility: hidden;
+}
+
+dialog .choices legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: GrayText;
+  font-size: 0.85em;
+}
+
 dialog .buttons {
   display: flex;
   justify-content: flex-end;
@@ -652,7 +680,7 @@ body.collapsed .rule.unsaved .main::after {
   color: AccentColor;
 }
 
-/* Header tools: Presets menu, Import, Export */
+/* Header tools: Presets menu, Export, Import */
 
 .tools {
   display: flex;

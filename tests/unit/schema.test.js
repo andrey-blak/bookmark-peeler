@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   SCHEMA_VERSION,
   NAME_MAX,
+  newId,
   UNDO_SECONDS_MIN,
   UNDO_SECONDS_MAX,
   UNDO_SECONDS_DEFAULT,
@@ -15,7 +16,7 @@ import {
   usableRules,
 } from "../../src/core/schema.js";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const RULE_ID = /^[0-9a-f]{8}$/;
 
 const goodRule = () => ({
   id: "r1",
@@ -57,7 +58,7 @@ describe("normalizeRule", () => {
 
   test("fills in defaults", () => {
     const rule = normalizeRule({ scope: { type: "host", host: "a.example" }, actions: [] });
-    assert.match(rule.id, UUID);
+    assert.match(rule.id, RULE_ID);
     assert.equal(rule.enabled, true);
     assert.equal(rule.scope.subdomains, true);
     assert.equal("name" in rule, false);
@@ -225,7 +226,7 @@ describe("normalizeConfig", () => {
     const { rules } = normalizeConfig({ rules: [goodRule(), goodRule()] });
     assert.equal(rules[0].id, "r1");
     assert.notEqual(rules[1].id, "r1");
-    assert.match(rules[1].id, UUID);
+    assert.match(rules[1].id, RULE_ID);
   });
 
   test("is idempotent", () => {
@@ -538,5 +539,15 @@ describe("the settings: undo seconds", () => {
 
   test("the limits are exported", () => {
     assert.deepEqual([UNDO_SECONDS_MIN, UNDO_SECONDS_MAX, UNDO_SECONDS_DEFAULT], [1, 60, 8]);
+  });
+});
+
+describe("newId", () => {
+  test("is 8 characters of lower-case hexadecimal", () => {
+    for (let i = 0; i < 50; i++) assert.match(newId(), RULE_ID);
+  });
+
+  test("differs between calls", () => {
+    assert.equal(new Set(Array.from({ length: 1000 }, newId)).size, 1000);
   });
 });

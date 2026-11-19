@@ -23,13 +23,13 @@ import {
   isSaveKey,
 } from "../../src/options/editor-model.js";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const RULE_ID = /^[0-9a-f]{8}$/;
 const paths = issues => issues.map(i => pathKey(i.path));
 
 describe("newDraft", () => {
   test("starts as an enabled rule for a domain, with an empty domain and no actions", () => {
     const draft = newDraft();
-    assert.match(draft.id, UUID);
+    assert.match(draft.id, RULE_ID);
     assert.equal(draft.enabled, true);
     assert.equal("name" in draft, false);
     assert.deepEqual(draft.scope, { type: "host", host: "", subdomains: true });
@@ -403,7 +403,7 @@ describe("duplicateDraft", () => {
 
   test("is a new rule with a new id and the name plus copy", () => {
     const copy = duplicateDraft(rule());
-    assert.match(copy.id, UUID);
+    assert.match(copy.id, RULE_ID);
     assert.notEqual(copy.id, "r");
     assert.equal(copy.name, "Example copy");
   });
