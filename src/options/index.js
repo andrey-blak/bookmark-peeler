@@ -90,6 +90,7 @@ function showView(name) {
   view = name;
   $("settings-button").setAttribute("aria-pressed", String(name === "settings"));
   updatePanes();
+  if (name === "settings") settings.fit();
 }
 
 /** Shows one of the editor, the settings and the invitation to add a rule. */
@@ -149,7 +150,7 @@ function applyCollapsed() {
   document.body.classList.toggle("collapsed", collapsed);
 
   const button = $("collapse");
-  button.textContent = collapsed ? "»" : "«";
+  button.firstElementChild.className = `icon ${collapsed ? "icon-chevron-right" : "icon-chevron-left"}`;
   button.setAttribute("aria-expanded", String(!collapsed));
   button.setAttribute("aria-label", collapsed ? "Show the rule list" : "Hide the rule list");
   button.title = `${collapsed ? "Show" : "Hide"} the rule list ([)`;
@@ -271,6 +272,7 @@ function renderRule(rule) {
   toggle.setAttribute("role", "switch");
   toggle.checked = rule.enabled !== false;
   toggle.setAttribute("aria-label", `Enable ${title}`);
+  toggle.title = "Enable or disable this rule";
 
   const main = document.createElement("button");
   main.type = "button";
@@ -310,8 +312,9 @@ function renderRule(rule) {
 
   const remove = document.createElement("button");
   remove.type = "button";
-  remove.className = "delete";
-  remove.textContent = "×";
+  remove.className = "delete icon-btn";
+  remove.append(Object.assign(document.createElement("span"), { className: "icon icon-delete" }));
+  remove.firstElementChild.setAttribute("aria-hidden", "true");
   remove.title = "Delete rule";
   remove.setAttribute("aria-label", `Delete ${title}`);
   item.append(remove);
@@ -739,24 +742,22 @@ async function openPreset(id) {
   editor.focus("name");
 }
 
-/** Fills the Presets menus, the one in the header and the one in the invitation to add a rule. */
+/** Fills the Presets menu in the header. */
 function renderPresets() {
-  for (const menu of [$("presets-list"), $("empty-presets-list")]) {
-    menu.replaceChildren(...PRESETS.map(preset => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "menu-item";
-      button.dataset.preset = preset.id;
+  $("presets-list").replaceChildren(...PRESETS.map(preset => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "menu-item";
+    button.dataset.preset = preset.id;
 
-      const title = document.createElement("span");
-      title.textContent = preset.title;
-      const description = document.createElement("small");
-      description.textContent = preset.description;
+    const title = document.createElement("span");
+    title.textContent = preset.title;
+    const description = document.createElement("small");
+    description.textContent = preset.description;
 
-      button.append(title, description);
-      return button;
-    }));
-  }
+    button.append(title, description);
+    return button;
+  }));
 }
 
 function closeMenus() {

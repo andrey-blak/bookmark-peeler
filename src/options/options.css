@@ -201,7 +201,6 @@ main {
 
 .delete {
   flex: none;
-  min-width: 28px;
 }
 
 /* Undo message */
@@ -599,13 +598,15 @@ dialog .buttons {
 
 /* Collapsed rule list: a narrow strip of squares with the initial of each rule */
 
-.sidebar-actions {
-  display: flex;
+.sidebar-add {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 28px;
   gap: 6px;
-}
-
-#add .short {
-  display: none;
+  margin-bottom: 8px;
+  padding: 0 12px;
+  font: inherit;
 }
 
 @media (min-width: 701px) {
@@ -616,8 +617,14 @@ dialog .buttons {
 }
 
 body.collapsed .sidebar-head {
-  flex-direction: column;
-  align-items: stretch;
+  justify-content: flex-end;
+}
+
+body.collapsed .sidebar-add {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
 }
 
 body.collapsed #rules-heading {
@@ -628,16 +635,8 @@ body.collapsed #rules-heading {
   clip: rect(0 0 0 0);
 }
 
-body.collapsed .sidebar-actions {
-  flex-direction: column;
-}
-
 body.collapsed #add .full {
   display: none;
-}
-
-body.collapsed #add .short {
-  display: inline;
 }
 
 body.collapsed .rule .grip,
@@ -719,7 +718,12 @@ body.collapsed .rule.unsaved .main::after {
 }
 
 .menu summary::after {
-  content: " ▾";
+  content: "";
+  width: 14px;
+  height: 14px;
+  margin-inline-start: 6px;
+  background: currentColor;
+  mask: url(icons/expand-down.svg) center / contain no-repeat;
 }
 
 .menu-list {
@@ -919,11 +923,6 @@ dialog .lines li {
   gap: 8px;
 }
 
-.menu.start .menu-list {
-  inset-inline-start: 0;
-  inset-inline-end: auto;
-}
-
 /* A text box with one entry per line, in an action card */
 
 .editor textarea {
@@ -949,6 +948,7 @@ dialog .lines li {
 
 .settings-section textarea,
 .excluded-sites textarea {
+  box-sizing: border-box;
   width: 100%;
 }
 
@@ -966,4 +966,56 @@ dialog .lines li {
 
 .site-messages:empty {
   display: none;
+}
+
+/* Icons: the SVG files are masks filled with the text colour, so they follow the theme and the hover colour. */
+
+.icon {
+  flex: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
+.icon-chevron-left { mask-image: url(icons/chevron-left.svg); }
+.icon-chevron-right { mask-image: url(icons/chevron-right.svg); }
+.icon-delete { mask-image: url(icons/delete.svg); }
+.icon-gear { mask-image: url(icons/settings-gear.svg); }
+.icon-plus { mask-image: url(icons/heavy-plus.svg); width: 12px; height: 12px; }
+.icon-collapse { mask-image: url(icons/collapse-up.svg); }
+.icon-expand { mask-image: url(icons/expand-down.svg); }
+
+.tools > button .icon {
+  margin-inline-end: 6px;
+}
+
+/* A square button with only an icon: small, neutral, and a colour on hover (red for .delete). */
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.delete {
+  width: 24px;
+  height: 24px;
+  border-color: transparent;
+  background: none;
+  color: GrayText;
+}
+
+.delete:hover,
+.delete:focus-visible {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
 }

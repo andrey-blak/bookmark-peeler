@@ -17,7 +17,7 @@
       </details>
       <button id="export" type="button" title="Save rules and settings to a file">Export…</button>
       <button id="import" type="button" title="Bring rules and settings in from a file">Import…</button>
-      <button id="settings-button" type="button" aria-pressed="false">Settings</button>
+      <button id="settings-button" type="button" aria-pressed="false"><span class="icon icon-gear" aria-hidden="true"></span>Settings</button>
       <input id="import-file" type="file" accept=".json,application/json" hidden>
     </div>
   </header>
@@ -26,11 +26,9 @@
     <section class="sidebar" aria-labelledby="rules-heading">
       <div class="sidebar-head">
         <h2 id="rules-heading">Rules</h2>
-        <div class="sidebar-actions">
-          <button id="add" type="button" title="Add rule"><span class="full">Add rule</span><span class="short" aria-hidden="true">+</span></button>
-          <button id="collapse" type="button" aria-expanded="true" aria-label="Hide the rule list" title="Hide the rule list ([)">«</button>
-        </div>
+        <button id="collapse" type="button" class="icon-btn" aria-expanded="true" aria-label="Hide the rule list" title="Hide the rule list ([)"><span class="icon icon-chevron-left" aria-hidden="true"></span></button>
       </div>
+      <button id="add" type="button" class="sidebar-add" aria-label="Add rule" title="Add rule"><span class="icon icon-plus" aria-hidden="true"></span><span class="full">Add rule</span></button>
       <p id="notice" class="notice" role="alert" hidden></p>
       <ul id="rules" class="rules" aria-label="Rules"></ul>
     </section>
@@ -43,10 +41,6 @@
       <p>Bookmark Peeler cleans the URL of a bookmark when you save it, using rules you create.</p>
       <div class="empty-actions">
         <button id="empty-add" type="button" class="primary">Add rule</button>
-        <details id="empty-presets" class="menu start">
-          <summary>Presets</summary>
-          <div id="empty-presets-list" class="menu-list"></div>
-        </details>
       </div>
     </section>
   </main>

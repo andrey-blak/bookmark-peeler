@@ -1,7 +1,7 @@
 // The Settings panel: the checkbox for cleaning edited bookmarks and the two buttons for the bulk clean.
 // It only draws and reports; what the buttons do is decided by the page (index.js).
 
-import { el } from "./dom.js";
+import { el, autosize } from "./dom.js";
 import { siteIssues, parseSites, sitesText } from "../core/exclusions.js";
 import { UNDO_SECONDS_MIN, UNDO_SECONDS_MAX, validUndoSeconds } from "../core/schema.js";
 
@@ -28,13 +28,14 @@ export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedS
     el("span", { className: "hint", id: "restore-hint" }));
 
   const sites = el("textarea", {
-    rows: 5,
+    rows: 2,
     placeholder: "example.com",
     spellcheck: false,
     autocomplete: "off",
     className: "mono",
     dataset: { excludedSites: "" },
   });
+  const fitSites = autosize(sites, { minRows: 2, maxRows: 10 });
   const siteMessages = el("ul", { className: "site-messages", id: "excluded-sites-messages" });
   sites.setAttribute("aria-describedby", "excluded-sites-messages");
 
@@ -93,11 +94,15 @@ export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedS
      * Shows the current state: the settings, and how many bookmarks "Restore" would put back (0 hides the button).
      * The text box is not touched while it has the focus, so what is being typed is not replaced.
      */
+    /** Fits the list of excluded sites to its text, for when the panel is shown. */
+    fit: fitSites,
+
     update({ cleanOnEdit, undoSeconds, excludedSites, restorable }) {
       checkbox.checked = cleanOnEdit;
       shownSeconds = String(undoSeconds);
       if (document.activeElement !== seconds) seconds.value = shownSeconds;
       if (document.activeElement !== sites) sites.value = sitesText(excludedSites);
+      fitSites();
       showSiteMessages(excludedSites);
       restoreRow.hidden = restorable === 0;
       root.querySelector("#restore-hint").textContent =

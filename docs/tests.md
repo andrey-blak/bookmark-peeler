@@ -63,6 +63,8 @@ To try this without the editor, put a rule into storage from the add-on's own co
 
 ### Main page: the rule list
 
+The icons (chevrons, trash, gear, plus, drop-down arrow) are black in a light theme and white in a dark one, like the text next to them.
+
 To get several rules quickly, put them into storage from the add-on's console with the `seed` helper (the editor can add them too, see the next section):
 
 ```js
@@ -83,11 +85,11 @@ Click the toolbar button: the main page must open in its own tab. Then check:
 2. The switch of a rule saves at once: reload the page, the state stays.
 3. Click a rule: it is highlighted. Up and Down select the previous and next rule, and stop at the ends. Ctrl+Up and Ctrl+Down move the selected rule and keep the focus on it. Reload: the order stays.
 4. Drag a rule by its handle (or anywhere on the row) between two others: a line shows where it lands. Reload: the order stays.
-5. Delete a rule with the × button: an Undo message appears for a few seconds, and the next rule is selected. Undo puts the rule back at its old position; after the message goes away the rule stays deleted.
+5. Delete a rule with its trash button (small and grey, red on hover, with a "Delete rule" tooltip): an Undo message appears for a few seconds, and the next rule is selected. Undo puts the rule back at its old position; after the message goes away the rule stays deleted.
 6. Open the main page in two tabs and change the list in one: the other tab follows.
 7. Switch the system between light and dark: colours follow, and fonts are the system's.
 8. Keyboard, with the focus on a rule (click it or use Up and Down):
-   - Enter and Space switch the rule on or off, whether the focus is on its name or on its switch (Space on the switch must not toggle twice). On the × button they delete instead.
+   - Enter and Space switch the rule on or off, whether the focus is on its name or on its switch (Space on the switch must not toggle twice). On the trash button they delete instead.
    - Delete deletes the rule and moves the focus to the next one.
    - Ctrl+Z, while the Undo message is visible, restores the last deleted rule at its old position and focuses it. After the message has gone, Ctrl+Z does nothing.
 9. The page does not print the shortcuts anywhere.
@@ -136,7 +138,7 @@ If the page looks unstyled or shows an old version after a change, reload the ad
 
 ### Main page: the collapsible rule list
 
-1. Collapse the list with the « button: it becomes a narrow strip with one square per rule showing its initial, with a "+" for Add rule at the top and » to expand. The selected rule is highlighted, a rule with an error has a red border, and clicking a square opens that rule. Reload: it stays collapsed.
+1. Collapse the list with the left chevron button next to the "Rules" heading: it becomes a narrow strip with one square per rule showing its initial, with the right chevron at the top to expand and a plus button for Add rule below it. The two buttons have the same height, and the chevron stays in the top right corner of the list in both states. The selected rule is highlighted, a rule with an error has a red border, and clicking a square opens that rule. Reload: it stays collapsed.
 2. Press `[` with the focus on a rule or on the page: the list expands again. Typing `[` in a text field (for example in a regex) must not collapse it.
 3. In the collapsed list, Up and Down, Ctrl+Up and Ctrl+Down, Delete, Enter and Space still work on the focused square.
 
@@ -169,7 +171,7 @@ Have two or three rules, for example "Tracking parameters" and the Example visib
 
 Have some bookmarks with tracking parameters (for example `https://example.com/?a=1&utm_source=x`) and the "Tracking parameters" preset saved.
 
-1. The header has a Settings button. It opens a panel in place of the editor, titled "Settings", without a back button; pressing the Settings button again, clicking a rule in the list, or Add rule goes back to the editor. The button looks pressed while the panel is open.
+1. The header has a Settings button with a gear icon before the word. It opens a panel in place of the editor, titled "Settings", without a back button; pressing the Settings button again, clicking a rule in the list, or Add rule goes back to the editor. The button looks pressed while the panel is open.
 2. The checkbox "Also clean a bookmark when its URL is edited" is off by default. Tick it, reload the page: it stays ticked, and `await browser.storage.sync.get("settings")` shows `cleanOnEdit: true`. Untick it again.
 3. "Clean existing bookmarks…" opens a dialog: first "Looking at your bookmarks…", then "N of M bookmarks would change." The changes are in a "Show the changes (N)" list that is open when the dialog appears (click its arrow to collapse it): each shows the title, and under it two columns, Before and After, with the old and the new URL. Parameters that were removed or rewritten are marked red in Before, and the new or rewritten ones green in After, in the text colour and not bold. A switch above the list, "Text colour" | "Background", changes how they are marked (the choice is remembered; it is there to compare the two). With more than 50 changes the list shows 50 and a "Show more… (K left)" button that adds the next 50.
 4. Cancel (or Esc) changes nothing. With no matching bookmark the dialog says "No bookmark would change" and has only Close.
@@ -190,7 +192,7 @@ Have six rules, A to F, in that order, some enabled and some switched off.
 5. With A and D selected (Ctrl+click): Ctrl+Up leaves A at the top and moves D up one place at a time until it is next to A; then nothing moves.
 6. With rules selected, Delete removes them all. The next rule after the first deleted one is opened, and the message says "Deleted 3 rules." Undo, or Ctrl+Z, restores all of them at their old positions, including rules that were not next to each other.
 7. With several rules selected, Enter or Space on the focused one gives all of them the opposite of its state: if it was on, all are switched off. Click the switch of one rule in the selection: only that rule changes.
-8. The × button of a selected rule deletes only that rule, and the switch of a row changes only that row. Dragging a rule that is not part of the selection moves only that rule.
+8. The trash button of a selected rule deletes only that rule, and the switch of a row changes only that row. Dragging a rule that is not part of the selection moves only that rule.
 9. With unsaved changes in the editor, Ctrl+click or Shift+click on another rule asks Save, Discard or Cancel. Cancel keeps the selection and the editor as they were.
 10. In the collapsed list the same clicks and keys work on the squares.
 11. Dragging several rules: select B and C (or B and E with Ctrl+click) and drag one of them over the list. All selected rules are shown as being dragged, and a line shows where they will land. Drop them between D and E: they land together in their order (B, C, or B, E). Dropping them on one of the selected rules, or on themselves, does nothing and shows no line. The selection stays after the drop. Reload: the order stays.
@@ -209,11 +211,10 @@ Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$`
 
 ### Main page: the empty rule list
 
-1. With no rules, the right side shows the heading "No rules yet", the sentence "Bookmark Peeler cleans the URL of a bookmark when you save it, using rules you create.", an Add rule button and a Presets drop-down. The Add rule button and the Presets drop-down have the same height. The left side shows no rules, and the usual editor invitation ("Select a rule to edit it, or add a new one.") is not shown.
+1. With no rules, the right side shows the heading "No rules yet", the sentence "Bookmark Peeler cleans the URL of a bookmark when you save it, using rules you create.", and an Add rule button, and no Presets. The left side shows no rules, and the usual editor invitation ("Select a rule to edit it, or add a new one.") is not shown.
 2. The same happens after you delete every rule: the invitation appears as soon as the last rule is gone. Undo (or Ctrl+Z) brings the rule back and the invitation goes away.
 3. Add rule opens a new rule in the editor, and the invitation is gone. Save it: the list has one rule. Open a new rule again with Add rule and press Cancel: the editor closes and, with no rules, the invitation comes back.
-4. The Presets drop-down in the invitation lists the same presets as the Presets button in the header, opens below the button and lines up with its left edge, and closes with Esc and with a click elsewhere. Choosing a preset opens it in the editor as a new unsaved rule, like the header menu does.
-5. The Settings button still shows the settings; going back shows the invitation again when there are still no rules. Import a file with rules: the invitation goes away.
+4. The Settings button still shows the settings; going back shows the invitation again when there are still no rules. Import a file with rules: the invitation goes away.
 6. With some rules in the list but none selected, the editor invitation ("Select a rule to edit it, or add a new one.") is shown, not the empty one.
 
 ### Where the data is stored
@@ -302,3 +303,11 @@ Have a rule for all sites that removes `utm_*`, and bookmarks on `example.com`, 
 4. Type `0`, `61`, `2.5`, `abc` or nothing, and click outside the box: the box goes back to the last saved number, and nothing is stored.
 5. `1` and `60` are accepted.
 6. The time applies to the Undo message of an import and of "Clean existing bookmarks…" too.
+
+### Header, rule list and Settings: look
+
+1. In the header, "Presets" has a clear gap before its drop-down arrow, and "Settings" has a gear before it.
+2. Each rule's switch shows the tooltip "Enable or disable this rule", whether it is on or off.
+3. The rule list has the heading "Rules" with the left chevron at its right, and below it the "Add rule" button with a plus icon. Collapsing keeps the chevron in the top right corner and puts the plus below it, and nothing else moves.
+4. The trash button of a rule is small and grey, and turns red, with a light red background, on hover and on keyboard focus.
+5. In Settings, the Excluded sites box starts two lines high and cannot be made smaller than that. It grows while you type, up to ten lines, and then scrolls. It can still be resized by hand. With a long list saved, it has its full height when you open Settings.
