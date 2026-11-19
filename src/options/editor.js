@@ -19,6 +19,10 @@ import {
   isDirty,
   canSave,
   canRevert,
+  actionSummary,
+  startCollapsed,
+  moveFlag,
+  cardsWithErrors,
 } from "./editor-model.js";
 import { ruleTitle } from "./rule-list.js";
 import { testRules, describeChange } from "./tester.js";
@@ -48,6 +52,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   let showAll = false; // after Save, or once a URL is in Try it, every issue is shown, and it stays shown
   let justSaved = false;
   let placeholder = DEFAULT_PLACEHOLDER; // what the empty editor says
+  let collapsedCards = []; // for each action of the draft, whether its card is collapsed; only shown, never stored
 
   // The tested URL is kept while the page is open, so it is still there when another rule is opened, but it is not stored.
   // The mode is remembered between visits. The list of changes starts collapsed.
@@ -62,7 +67,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   }
 
   // hideLabel: the label is still there for screen readers, but the layout already shows what the field is.
-  function textField(label, path, placeholder, { mono = false, disabled = false, hideLabel = false, maxLength = null } = {}) {
+  function textInput(path, placeholder, { mono = false, disabled = false, maxLength = null } = {}) {
     const key = pathKey(path);
     const value = path.reduce((node, part) => node?.[part], draft);
     const input = el("input", {
@@ -77,7 +82,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     });
     if (maxLength !== null) input.maxLength = maxLength;
     input.setAttribute("aria-describedby", `msg-${key}`);
-    return el("label", { className: "field" }, el("span", { className: hideLabel ? "label sr-only" : "label" }, label), input);
+    return input;
+  }
+
+  function textField(label, path, placeholder, options = {}) {
+    return el("label", { className: "field" }, el("span", { className: "label" }, label), textInput(path, placeholder, options));
   }
 
   /**
@@ -145,26 +154,35 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     return section;
   }
 
-  function replaceLine(index, part, label, placeholders) {
+  // The name or the value of a parameter: what to find, and optionally what to put in its place.
+  // The label of the second box is the checkbox that switches the replacement on.
+  function replaceGroup(index, part, title, description, placeholders) {
     const base = ["actions", index, part];
     const key = pathKey(base);
     const ticked = typeof draft.actions[index]?.[part]?.replace === "string";
 
-    return el("div", { className: "line" },
-      el("span", { className: "k" }, label),
-      textField(`${label} pattern`, [...base, "find"], placeholders.find, { mono: true, hideLabel: true }),
-      checkbox("Replace with", ticked, { replacePath: key }),
-      textField(`${label} replacement`, [...base, "replace"], placeholders.replace, { mono: true, disabled: !ticked, hideLabel: true }),
+    const replacement = textInput([...base, "replace"], placeholders.replace, { mono: true, disabled: !ticked });
+    replacement.setAttribute("aria-label", `${title} replacement`);
+
+    return el("div", { className: "group" },
+      el("div", { className: "group-title" }, el("strong", {}, title), el("span", { className: "desc" }, description)),
+      el("div", { className: "find-pair" },
+        textField("Find", [...base, "find"], placeholders.find, { mono: true }),
+        el("span", { className: "arrow", "aria-hidden": "true" }, "→"),
+        el("div", { className: "field" }, checkbox("Replace with", ticked, { replacePath: key }), replacement)),
       slot(`${key}.find`),
       slot(`${key}.replace`));
   }
 
+  const ACTIONS = {
+    remove: { title: "Remove parameter", description: "Removes matching query parameters." },
+    replace: { title: "Replace", description: "Replaces matching parameter names or values." },
+    keep: { title: "Keep only these parameters", description: "Removes all parameters not listed." },
+  };
+
   function actionCard(action, index) {
-    const heading = {
-      remove: "Remove parameter",
-      replace: "Replace in parameter or value",
-      keep: "Keep only these parameters",
-    }[action?.type] ?? "Unknown action";
+    const info = ACTIONS[action?.type] ?? { title: "Unknown action", description: "" };
+    const isCollapsed = collapsedCards[index] === true;
 
     const count = draft.actions.length;
     const mover = (direction, disabled) => {
@@ -179,39 +197,73 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       return button;
     };
 
-    const remove = el("button", { type: "button", textContent: "×", title: "Delete action", dataset: { removeAction: String(index) } });
+    const remove = el("button", { type: "button", className: "delete icon-btn", title: "Delete action", dataset: { removeAction: String(index) } },
+      el("span", { className: "icon icon-delete", "aria-hidden": "true" }));
     remove.setAttribute("aria-label", `Delete action ${index + 1}`);
 
     const grip = el("span", { className: "grip", draggable: true, title: "Drag to reorder", dataset: { actionGrip: String(index) } }, "⋮⋮");
     grip.setAttribute("aria-hidden", "true");
 
+    const toggle = el("button", { type: "button", className: "icon-btn", dataset: { toggleCard: String(index) } },
+      el("span", { className: "icon", "aria-hidden": "true" }));
+    toggle.setAttribute("aria-label", `Action ${index + 1}, ${info.title}`);
+
+    const flag = el("span", { className: "status card-flag", title: "This action has an error", dataset: { status: "error" } });
+    flag.setAttribute("role", "img");
+    flag.setAttribute("aria-label", "This action has an error");
+
+    const body = el("div", { className: "card-body" });
     const card = el("div", { className: "card", dataset: { actionIndex: String(index) } },
       el("div", { className: "card-head" },
         grip,
-        el("strong", {}, heading),
+        toggle,
+        el("strong", {}, info.title),
+        el("span", { className: "card-summary mono" }),
+        flag,
         mover("up", index === 0),
         mover("down", index === count - 1),
-        remove));
+        remove),
+      el("p", { className: "desc" }, info.description),
+      body);
 
     if (action?.type === "remove") {
-      card.append(textField("Parameter", ["actions", index, "parameter"], "utm_*", { mono: true }));
-      card.append(el("p", { className: "hint" }, "* matches any characters."));
-      card.append(slot(`actions.${index}.parameter`));
+      body.append(el("div", { className: "group" },
+        textField("Parameter", ["actions", index, "parameter"], "utm_*", { mono: true }),
+        el("p", { className: "hint" }, "* = any characters"),
+        slot(`actions.${index}.parameter`)));
     } else if (action?.type === "keep") {
-      card.append(linesField("Parameters", ["actions", index, "parameters"], "list\nutm_*"));
-      card.append(el("p", { className: "hint" }, "One parameter per line. * matches any characters. All other parameters are removed."));
-      card.append(slot(`actions.${index}.parameters`));
+      body.append(el("div", { className: "group" },
+        linesField("Parameters", ["actions", index, "parameters"], "list\nutm_*"),
+        el("p", { className: "hint" }, "One per line. * = any characters"),
+        slot(`actions.${index}.parameters`)));
     } else if (action?.type === "replace") {
-      card.append(replaceLine(index, "parameter", "Parameter", { find: "^visibility$", replace: "" }));
-      card.append(replaceLine(index, "value", "Value", { find: "^public$", replace: "private" }));
-      card.append(checkbox("Case sensitive", action.ignoreCase !== true, { path: `actions.${index}.ignoreCase`, invert: "true" }));
-      card.append(el("p", { className: "hint" }, "Empty Parameter means any parameter. Patterns are regular expressions; use ^ and $ for an exact match."));
+      body.append(
+        replaceGroup(index, "parameter", "Parameter name", "Rename a parameter.", { find: "^visibility$", replace: "" }),
+        replaceGroup(index, "value", "Parameter value", "Replace a value.", { find: "^public$", replace: "private" }),
+        el("div", { className: "group" },
+          checkbox("Case sensitive", action.ignoreCase !== true, { path: `actions.${index}.ignoreCase`, invert: "true" }),
+          el("p", { className: "hint" }, "Empty = any parameter. Supports regex. Use ^ and $ for exact matches.")));
     } else {
-      card.append(slot(`actions.${index}.type`));
+      body.append(slot(`actions.${index}.type`));
     }
 
-    card.append(slot(`actions.${index}`));
+    body.append(slot(`actions.${index}`));
+    showCardState(card, isCollapsed);
     return card;
+  }
+
+  /** Collapses or expands a card in place: the body is hidden, and the summary and the arrow follow. */
+  function showCardState(card, isCollapsed) {
+    const index = Number(card.dataset.actionIndex);
+    const toggle = card.querySelector("[data-toggle-card]");
+
+    card.classList.toggle("collapsed", isCollapsed);
+    card.querySelector(".card-body").hidden = isCollapsed;
+    card.querySelector(":scope > .desc").hidden = isCollapsed;
+    toggle.firstElementChild.className = `icon ${isCollapsed ? "icon-expand" : "icon-collapse"}`;
+    toggle.setAttribute("aria-expanded", String(!isCollapsed));
+    toggle.title = isCollapsed ? "Expand" : "Collapse";
+    card.querySelector(".card-summary").textContent = isCollapsed ? actionSummary(draft.actions[index]) : "";
   }
 
   function actionsSection() {
@@ -219,7 +271,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       // Shown while closed, but not offered in the list.
       el("option", { value: "", textContent: "Add action…", hidden: true, disabled: true, selected: true }),
       el("option", { value: "remove", textContent: "Remove parameter" }),
-      el("option", { value: "replace", textContent: "Replace in parameter or value" }),
+      el("option", { value: "replace", textContent: "Replace" }),
       el("option", { value: "keep", textContent: "Keep only these parameters" }));
 
     return el("section", {},
@@ -325,6 +377,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       ...(isNew ? [el("button", { type: "button", textContent: "Cancel", dataset: { cancel: "" } })] : []),
       el("span", { className: "summary", id: "summary", role: "status" }));
 
+    if (collapsedCards.length !== draft.actions.length) collapsedCards = startCollapsed(draft);
     growing = [];
     const form = el("form", { className: "editor-form", noValidate: true }, header, scopeSection(), actionsSection(), testerSection(), footer);
     root.replaceChildren(form);
@@ -349,6 +402,14 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       const invalid = visible.some(i => i.severity === "error" && pathKey(i.path) === input.dataset.path);
       input.classList.toggle("invalid", invalid);
       input.setAttribute("aria-invalid", String(invalid));
+    }
+
+    // A collapsed card shows its summary, and a mark when something in it is wrong.
+    const bad = cardsWithErrors(visible);
+    for (const card of root.querySelectorAll(".card[data-action-index]")) {
+      const index = Number(card.dataset.actionIndex);
+      card.classList.toggle("has-error", bad.has(index));
+      if (collapsedCards[index]) card.querySelector(".card-summary").textContent = actionSummary(draft.actions[index]);
     }
 
     const summary = root.querySelector("#summary");
@@ -450,6 +511,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     } else if (field.dataset.addAction !== undefined) {
       if (field.value === "") return;
       draft = addAction(draft, field.value);
+      collapsedCards = [...collapsedCards, false];
       touched.add("actions");
       // The actions above the new one are done with, so their messages show.
       for (let i = 0; i < draft.actions.length - 1; i++) touched.add(`actions.${i}.*`);
@@ -478,9 +540,28 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       return;
     }
 
+    const toggle = event.target.closest("[data-toggle-card]");
+    if (toggle) {
+      const index = Number(toggle.dataset.toggleCard);
+      collapsedCards = collapsedCards.map((value, i) => (i === index ? !value : value));
+      showCardState(toggle.closest(".card"), collapsedCards[index]);
+      return;
+    }
+
+    // A collapsed card opens when it is clicked anywhere. Its buttons and its drag handle keep their own meaning.
+    const collapsedCard = event.target.closest(".card.collapsed");
+    if (collapsedCard && !event.target.closest("button, .grip")) {
+      const card = collapsedCard;
+      const index = Number(card.dataset.actionIndex);
+      collapsedCards = collapsedCards.map((value, i) => (i === index ? false : value));
+      showCardState(card, false);
+      return;
+    }
+
     const remove = event.target.closest("[data-remove-action]");
     if (remove) {
       draft = unsetIn(draft, ["actions", Number(remove.dataset.removeAction)]);
+      collapsedCards = collapsedCards.filter((_, i) => i !== Number(remove.dataset.removeAction));
       // What was touched in the actions after this one moves with them.
       touched = remapTouchedAfterRemove(touched, Number(remove.dataset.removeAction));
       touched.add("actions");
@@ -538,6 +619,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     const caret = typeof active?.selectionStart === "number" ? [active.selectionStart, active.selectionEnd] : null;
 
     draft = moveAction(draft, from, target);
+    collapsedCards = moveFlag(collapsedCards, from, target);
     touched = remapTouched(touched, from, target);
     changed();
     redraw(focus.selector, { caret, fallback: focus.fallback });
@@ -621,6 +703,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
   function revert() {
     draft = clone(baseline);
+    collapsedCards = startCollapsed(draft);
     touched = new Set();
     showAll = !isNew || tester.url.trim() !== "";
     justSaved = false;
@@ -635,6 +718,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     open(rule, { isNew: opened = false } = {}) {
       draft = clone(rule);
       baseline = clone(rule);
+      collapsedCards = startCollapsed(draft);
       isNew = opened;
       touched = new Set();
       // A stored rule shows all its errors and warnings at once; a new one only after the user has typed.
@@ -648,6 +732,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
     close(message = DEFAULT_PLACEHOLDER) {
       draft = null;
       baseline = null;
+      collapsedCards = [];
       isNew = false;
       placeholder = message;
       draw();
@@ -661,6 +746,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
       draft = clone(rule);
       baseline = clone(rule);
+      collapsedCards = startCollapsed(draft);
       redraw();
     },
 
@@ -671,6 +757,9 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       isNew = false;
       showAll = true;
       justSaved = true;
+      // After Save every error is shown, so a collapsed card with one opens.
+      const bad = cardsWithErrors(validateRule(draft));
+      collapsedCards = draft.actions.map((_, i) => (collapsedCards[i] === true && !bad.has(i)));
       redraw();
       onChange();
     },

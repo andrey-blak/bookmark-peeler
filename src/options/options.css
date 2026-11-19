@@ -370,7 +370,7 @@ main {
 }
 
 .card {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-card);
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -380,15 +380,98 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .card-head strong {
+  white-space: nowrap;
+}
+
+/* The one-line summary of a collapsed card takes the space that is left and is cut with an ellipsis. */
+.card-summary {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: GrayText;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card:not(.collapsed) .card-head strong {
+  flex: 1;
+}
+
+.card:not(.collapsed) .card-summary {
+  display: none;
 }
 
 .card-head button {
   min-width: 28px;
+}
+
+/* A collapsed card opens when it is clicked, anywhere but on its buttons. */
+.card.collapsed {
+  cursor: pointer;
+}
+
+.card-head .icon-btn {
+  min-width: 0;
+}
+
+.card-flag {
+  display: none;
+}
+
+.card.collapsed.has-error .card-flag {
+  display: inline-block;
+}
+
+.card .desc {
+  margin: 2px 0 0;
+  color: GrayText;
+  font-size: 0.85em;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-field);
+  margin-top: var(--space-title);
+}
+
+.card-body[hidden] {
+  display: none;
+}
+
+.group-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  margin-bottom: var(--space-label);
+}
+
+.group-title .desc {
+  color: GrayText;
+  font-size: 0.85em;
+}
+
+/* Find and Replace with side by side, with an arrow between them. */
+.find-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 0 8px;
+}
+
+.find-pair .arrow {
+  padding-bottom: 5px;
+  color: GrayText;
+}
+
+.find-pair .check {
+  min-height: 1.2em;
+  color: GrayText;
+  font-size: 0.85em;
 }
 
 .card.dragging {
@@ -401,29 +484,6 @@ main {
 
 .card.drop-after {
   box-shadow: 0 2px 0 AccentColor;
-}
-
-.line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin-top: 8px;
-}
-
-.line .k {
-  width: 70px;
-  flex: none;
-  color: GrayText;
-}
-
-.line .field {
-  flex: 1 1 140px;
-}
-
-.line .msg {
-  flex-basis: 100%;
-  padding-inline-start: 82px;
 }
 
 .footer {

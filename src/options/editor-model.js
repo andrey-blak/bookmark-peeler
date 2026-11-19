@@ -222,3 +222,57 @@ export function duplicateDraft(rule) {
 export function isSaveKey({ key, ctrlKey, shiftKey, altKey, metaKey }) {
   return ctrlKey === true && !shiftKey && !altKey && !metaKey && key.toLowerCase() === "s";
 }
+
+// --- Action cards ---
+
+const isFilled = value => typeof value === "string" && value.trim() !== "";
+
+/** One line about an action, shown on its card while it is collapsed. */
+export function actionSummary(action) {
+  switch (action?.type) {
+    case "remove":
+      return isFilled(action.parameter) ? action.parameter : "(empty)";
+
+    case "keep": {
+      const parameters = (Array.isArray(action.parameters) ? action.parameters : []).filter(isFilled);
+      return parameters.length > 0 ? parameters.join(", ") : "(empty)";
+    }
+
+    case "replace": {
+      const part = (label, spec) => {
+        if (!isFilled(spec?.find)) return null;
+        if (typeof spec.replace !== "string") return `${label}: ${spec.find}`;
+        return `${label}: ${spec.find} → ${spec.replace === "" ? "(nothing)" : spec.replace}`;
+      };
+      const parts = [part("name", action.parameter), part("value", action.value)].filter(Boolean);
+      return parts.length > 0 ? parts.join("; ") : "(empty)";
+    }
+
+    default:
+      return "";
+  }
+}
+
+/** Which cards of a rule start collapsed: all of them when it has several actions, none when it has one or none. */
+export function startCollapsed(draft) {
+  const count = Array.isArray(draft?.actions) ? draft.actions.length : 0;
+  return Array.from({ length: count }, () => count > 1);
+}
+
+/** The list with the entry at `from` moved to `to` (clamped), the way moveAction moves an action. */
+export function moveFlag(flags, from, to) {
+  const target = Math.max(0, Math.min(to, flags.length - 1));
+  const moved = [...flags];
+  const [flag] = moved.splice(from, 1);
+  moved.splice(target, 0, flag);
+  return moved;
+}
+
+/** The positions of the actions that have an error, from the issues of a rule. */
+export function cardsWithErrors(issues) {
+  const found = new Set();
+  for (const issue of issues) {
+    if (issue.severity === "error" && issue.path[0] === "actions" && Number.isInteger(issue.path[1])) found.add(issue.path[1]);
+  }
+  return found;
+}

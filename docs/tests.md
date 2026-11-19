@@ -101,13 +101,13 @@ The shortcuts, for reference: Up and Down select a rule, Ctrl+Up and Ctrl+Down m
 Start with the rules from the previous section, or an empty list.
 
 1. Add rule: the editor opens with an empty Name, Scope "Domain" and an empty Domain showing the `example.com` placeholder. The list gets an italic "New rule" row. No error or warning is visible yet, as long as the Try it URL field is empty.
-2. Type `example.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter", "Replace in parameter or value" and "Keep only these parameters", and nothing that does nothing. Choose the replace action: a card appears with the focus in its Parameter field, and no message yet.
-3. Fill in Parameter `^visibility$`, leave "Replace with" unticked there, Value `^public$`, and in the Value replacement `private`. Then type `(` in the Value pattern: a red message about the regular expression appears under it, the field is outlined, and the line next to Save says "1 error. The rule isn't applied until the error is fixed." Fix the pattern.
-4. Untick "Replace with" on the Value line: a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
+2. Type `example.com` in Domain: the row gets a • (unsaved changes). Open the "Add action…" menu: it offers only "Remove parameter", "Replace" and "Keep only these parameters", and nothing that does nothing. Choose the replace action: a card appears with the focus in the Find box of "Parameter name", and no message yet.
+3. Fill in Find `^visibility$` under "Parameter name", leave "Replace with" unticked there, and under "Parameter value" Find `^public$` and, with "Replace with" ticked, `private`. Then type `(` in the Find box of the value: a red message about the regular expression appears under it, the field is outlined, and the line next to Save says "1 error. The rule isn't applied until the error is fixed." Fix the pattern.
+4. Untick "Replace with" under "Parameter value": a warning "Nothing is replaced..." appears; tick it again: the replacement field is enabled and empty.
 5. Press Save (and, in another rule, Ctrl+S while typing in a field: Firefox's "Save page" must not open). The row gets the name, or the domain when the name is empty, the • goes, and "Saved." is shown. Reload the page: the rule is there and opens with the same values.
 6. With a saved rule open, change a field and press Revert: the stored values come back. On a new rule, Revert clears the form.
 7. Scope: "All sites" hides Domain, Include subdomains and Path; going back to "Domain" brings the domain back; "Domain + path" shows Path and a hint about `*` and `**`. Enter `/new` and save.
-8. Add a "Remove parameter" action with `utm_*`, then delete it with ×; the focus moves to the Add action menu. Delete an action that is not the last one: the actions after it move up and keep their values.
+8. Add a "Remove parameter" action with `utm_*`, then delete it with its trash button; the focus moves to the Add action menu. Delete an action that is not the last one: the actions after it move up and keep their values.
 9. Unsaved changes: change a field of a rule, then click another rule. A dialog offers Save, Discard and Cancel. Cancel (or Esc) stays; Discard switches and drops the changes; Save stores them and then switches. The same happens for Add rule and Duplicate, and with Up and Down in the list.
 10. Duplicate: a new unsaved row appears, the Name is "<name> copy" (empty when the rule had none), and the scope and actions are the same. Changing the copy does not change the original.
 11. With unsaved changes, reload the page or close the tab: Firefox asks for confirmation.
@@ -201,7 +201,7 @@ Have six rules, A to F, in that order, some enabled and some switched off.
 
 Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$` renamed to `c`), and Remove `c`, and put a URL such as `https://example.com/?a=1&b=2` in "Try it".
 
-1. Each action card has a drag handle (⋮⋮), Move up (↑), Move down (↓) and Delete (×) in its header. On the first card Move up is greyed out, and on the last card Move down is.
+1. Each action card has a drag handle (⋮⋮), Move up (↑), Move down (↓) and a trash button in its header, after a collapse arrow. On the first card Move up is greyed out, and on the last card Move down is.
 2. Press Move down on the first card: it goes to second place and the card keeps its fields. The focus stays on the Move down button of that card, now at its new place. The result in "Try it" changes at once, because actions run top to bottom. The row in the list shows the unsaved mark.
 3. Move the last card up with its Move up button until it is first: when it reaches the end, the focus jumps to the other move button of that card, which is still enabled.
 4. Ctrl+Alt+Up and Ctrl+Alt+Down with the focus in a field of a card move that card, and the focus and the text cursor stay in the same field. On the first card Ctrl+Alt+Up, and on the last Ctrl+Alt+Down, does nothing.
@@ -239,7 +239,7 @@ Open a rule with three actions, for example Remove `a`, Replace (Parameter `^b$`
 
 Open a rule and add the action from the Add action menu. Put `https://example.com/video?v=Hn4xT9sBq2L&si=abc&feature=share&utm_source=x` in "Try it".
 
-1. The card is titled "Keep only these parameters" and has a text box and the hint "One parameter per line. * matches any characters. All other parameters are removed." Its header has the drag handle, ↑, ↓ and ×, like the other actions. The focus is in the text box.
+1. The card is titled "Keep only these parameters" and has a text box and the hint "One per line. * = any characters", under the line "Removes all parameters not listed." Its header has the drag handle, the collapse arrow, ↑, ↓ and the trash button, like the other actions. The focus is in the text box.
 2. Nothing is shown at first. Type `v` and press Enter, then type `t`: the result in "Try it" is `https://example.com/video?v=Hn4xT9sBq2L`, and "What changed" lists `si`, `feature` and `utm_source` as removed. Add the line `utm_*`: `utm_source=x` stays.
 3. Blank lines and spaces around a name do not matter: add a blank line, and spaces before and after `v`. The result does not change, and the rule does not count as changed (Save stays inactive if that was all you changed).
 4. An empty text box, or one with only blank lines, shows the error "Enter at least one parameter." once you have typed in it, and the rule is not applied. Remove all the text: the error is back and the rule shows the error mark in the list.
@@ -317,3 +317,16 @@ Have a rule for all sites that removes `utm_*`, and bookmarks on `example.com`, 
 1. "Applies to" is one column, each field with its label above it and the same space between all of them: Scope, Domain, the checkbox "Include subdomains", and, for "Domain + path", Path with its hint. A message about a field appears right under that field.
 2. The rule's Excluded sites box starts two lines high, cannot be made smaller, and grows with its text up to ten lines, then scrolls. It can be resized by hand. Open another rule and come back: a long list has its full height at once.
 3. The Scope menu is only as wide as its text, not the whole width, and its text is as large as the text in the Name and Domain boxes. The "Add action…" menu has the same text size.
+
+### Action cards: look and collapsing
+
+Use a rule with three actions: Remove `utm_*`, Replace (parameter name `visi` → `sivi`, value `public` → `private`), and Keep `list`, `v`.
+
+1. Each card has a title, a grey line under it that describes the action ("Removes matching query parameters.", "Replaces matching parameter names or values.", "Removes all parameters not listed."), and its fields. The Remove card has the label "Parameter" above its box and the hint "* = any characters".
+2. The Replace card has two groups, "Parameter name — Rename a parameter." and "Parameter value — Replace a value.". Each has "Find" and "Replace with" side by side with an arrow between them, both labels above their boxes; "Replace with" is the checkbox that enables its box. Below them are "Case sensitive" and the hint "Empty = any parameter. Supports regex. Use ^ and $ for exact matches."
+3. The space is the same everywhere: 12px from a card's title to its first field, 4px from a label to its box, 12px between groups of fields, 8px between cards. The labels are above their boxes in every card.
+4. Open the rule: with three actions every card is collapsed and shows its title and a one-line summary in monospace after it: `utm_*`, `name: visi → sivi; value: public → private`, `list, v`. A long summary is cut with an ellipsis. A rule with one action opens with its card expanded.
+5. The arrow button at the left of the title expands and collapses a card (down arrow when collapsed, up arrow when expanded, with the tooltips "Expand" and "Collapse"). Clicking anywhere on a collapsed card, on its title, its summary or the empty space, expands it too; clicking an expanded card does nothing, and the buttons and the drag handle keep their own meaning. Expanding shows the line under the title and the fields; the focus stays on the button, and Space or Enter work on it.
+6. ↑, ↓, drag and Ctrl+Alt+Up or Down move a collapsed card, and its collapsed state goes with it. Deleting a card keeps the others as they were. A new action from "Add action…" is expanded, and the others keep their state.
+7. Expand a card, empty its Parameter and collapse it: the summary says `(empty)`, and a red "!" mark follows it, because a stored rule shows all its errors at once. Save the rule: the card with the error opens by itself.
+8. Revert, and opening another rule, set the cards back to their starting state (collapsed with several actions).

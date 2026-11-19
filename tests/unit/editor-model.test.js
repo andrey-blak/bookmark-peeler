@@ -21,6 +21,10 @@ import {
   canRevert,
   duplicateDraft,
   isSaveKey,
+  actionSummary,
+  startCollapsed,
+  moveFlag,
+  cardsWithErrors,
 } from "../../src/options/editor-model.js";
 
 const RULE_ID = /^[0-9a-f]{8}$/;
@@ -589,5 +593,82 @@ describe("actionDropIndex", () => {
     assert.equal(dropped(1, 1, true), "abcd");
     assert.equal(dropped(1, 0, true), "abcd");
     assert.equal(dropped(1, 2, false), "abcd");
+  });
+});
+
+describe("actionSummary", () => {
+  test("a Remove action is its parameter", () => {
+    assert.equal(actionSummary({ type: "remove", parameter: "utm_*" }), "utm_*");
+  });
+
+  test("a Keep action is its parameters, in order", () => {
+    assert.equal(actionSummary({ type: "keep", parameters: ["list", "utm_*"] }), "list, utm_*");
+  });
+
+  test("a Replace action says what it does to the name and to the value", () => {
+    const action = { type: "replace", parameter: { find: "visi", replace: "sivi" }, value: { find: "public", replace: "private" } };
+    assert.equal(actionSummary(action), "name: visi → sivi; value: public → private");
+  });
+
+  test("a Replace action without a replacement only matches", () => {
+    assert.equal(actionSummary({ type: "replace", value: { find: "^public$" } }), "value: ^public$");
+  });
+
+  test("replacing with nothing is said", () => {
+    assert.equal(actionSummary({ type: "replace", value: { find: "x", replace: "" } }), "value: x → (nothing)");
+  });
+
+  test("an action with nothing filled in is (empty)", () => {
+    for (const action of [{ type: "remove", parameter: "" }, { type: "keep", parameters: [] }, { type: "keep", parameters: ["", " "] }, { type: "replace" }]) {
+      assert.equal(actionSummary(action), "(empty)", JSON.stringify(action));
+    }
+  });
+
+  test("an unknown action, or no action, has no summary", () => {
+    assert.equal(actionSummary({ type: "nope" }), "");
+    assert.equal(actionSummary(undefined), "");
+  });
+});
+
+describe("startCollapsed", () => {
+  const actions = count => ({ actions: Array.from({ length: count }, () => ({ type: "remove", parameter: "a" })) });
+
+  test("a rule with one action, or none, starts with every card open", () => {
+    assert.deepEqual(startCollapsed(actions(0)), []);
+    assert.deepEqual(startCollapsed(actions(1)), [false]);
+  });
+
+  test("a rule with several actions starts with every card collapsed", () => {
+    assert.deepEqual(startCollapsed(actions(3)), [true, true, true]);
+  });
+});
+
+describe("moveFlag", () => {
+  test("moves an entry like moveAction moves an action", () => {
+    assert.deepEqual(moveFlag([true, false, false], 0, 2), [false, false, true]);
+    assert.deepEqual(moveFlag([true, false, false], 2, 0), [false, true, false]);
+  });
+
+  test("a place outside the list is clamped, and the input is not changed", () => {
+    const flags = [true, false];
+    assert.deepEqual(moveFlag(flags, 0, 9), [false, true]);
+    assert.deepEqual(flags, [true, false]);
+  });
+});
+
+describe("cardsWithErrors", () => {
+  test("lists the actions that have an error, from the issues of a rule", () => {
+    const issues = [
+      { severity: "error", path: ["actions", 1, "parameter"], message: "x" },
+      { severity: "warning", path: ["actions", 0, "value", "find"], message: "x" },
+      { severity: "error", path: ["scope", "host"], message: "x" },
+      { severity: "error", path: ["actions", 1], message: "x" },
+      { severity: "error", path: ["actions", 3, "parameters"], message: "x" },
+    ];
+    assert.deepEqual([...cardsWithErrors(issues)].sort(), [1, 3]);
+  });
+
+  test("no issues, no cards", () => {
+    assert.equal(cardsWithErrors([]).size, 0);
   });
 });
