@@ -244,6 +244,7 @@ export const STRINGS = {
 
   // --- Problems found in a rule ---
   "site.wildcard": "Wildcards aren't supported. Subdomains are included automatically.",
+  "site.duplicate": "Already in the list.",
   "site.invalid": "Enter just the domain, without a path, port or spaces.",
   "issue.except-entry": "“{entry}”: {message}",
   "issue.except-not-list": "The excluded sites must be a list.",

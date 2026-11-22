@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { isExcluded, siteIssues, validSites, parseSites, sitesText } from "../../src/core/exclusions.js";
+import { isExcluded, siteIssues, siteDuplicates, validSites, parseSites, sitesText } from "../../src/core/exclusions.js";
 
 const url = "https://www.example.com/video?v=Hn4xT9sBq2L&pp=qvRtLd8aWk";
 
@@ -94,9 +94,44 @@ describe("siteIssues", () => {
   });
 });
 
+describe("siteDuplicates", () => {
+  test("a list without repeats has none", () => {
+    assert.deepEqual(siteDuplicates(["example.com", "example.org"]), []);
+    assert.deepEqual(siteDuplicates([]), []);
+  });
+
+  test("a repeat is reported with its place, and the first entry is not", () => {
+    const duplicates = siteDuplicates(["a.example", "b.example", "a.example", "a.example"]);
+    assert.deepEqual(duplicates.map(d => [d.index, d.entry]), [[2, "a.example"], [3, "a.example"]]);
+  });
+
+  test("case, spaces and the punycode form do not hide a repeat", () => {
+    assert.deepEqual(siteDuplicates(["Example.com", " example.com "]).map(d => d.index), [1]);
+    assert.deepEqual(siteDuplicates(["bücher.example", "xn--bcher-kva.example"]).map(d => d.index), [1]);
+  });
+
+  test("blank entries, bad entries and anything but a list are not repeats", () => {
+    assert.deepEqual(siteDuplicates(["", "", "*", "*", "x y", "x y"]), []);
+    assert.deepEqual(siteDuplicates(undefined), []);
+    assert.deepEqual(siteDuplicates([5, 5]), []);
+  });
+
+  test("a subdomain of a listed domain is not a repeat", () => {
+    assert.deepEqual(siteDuplicates(["example.com", "www.example.com"]), []);
+  });
+
+  test("a repeat has a message", () => {
+    assert.match(siteDuplicates(["a.example", "a.example"])[0].message, /already/i);
+  });
+});
+
 describe("validSites", () => {
   test("the plain domains stay, in order, and the bad entries are left out", () => {
     assert.deepEqual(validSites(["example.com", "*example.com", "example.com:800", "e 2", "example.org"]), ["example.com", "example.org"]);
+  });
+
+  test("a repeated domain stays: a repeat is a warning, not an error", () => {
+    assert.deepEqual(validSites(["example.com", "example.com"]), ["example.com", "example.com"]);
   });
 
   test("a list without bad entries is the same", () => {

@@ -3,7 +3,7 @@
 
 import { el, autosize } from "./dom.js";
 import { t } from "../core/text.js";
-import { siteIssues, parseSites, sitesText } from "../core/exclusions.js";
+import { siteIssues, siteDuplicates, parseSites, sitesText } from "../core/exclusions.js";
 import { UNDO_SECONDS_MIN, UNDO_SECONDS_MAX, validUndoSeconds } from "../core/schema.js";
 
 /**
@@ -41,7 +41,8 @@ export function createSettings(root, { onCleanOnEdit, onUndoSeconds, onExcludedS
   sites.setAttribute("aria-describedby", "excluded-sites-messages");
 
   const showSiteMessages = list => {
-    siteMessages.replaceChildren(...siteIssues(list).map(issue => el("li", {}, t("issue.except-entry", { entry: issue.entry, message: issue.message }))));
+    const problems = [...siteIssues(list), ...siteDuplicates(list)].sort((a, b) => a.index - b.index);
+    siteMessages.replaceChildren(...problems.map(issue => el("li", {}, t("issue.except-entry", { entry: issue.entry, message: issue.message }))));
   };
 
   root.replaceChildren(

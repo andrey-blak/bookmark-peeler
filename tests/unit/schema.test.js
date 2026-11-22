@@ -508,6 +508,18 @@ describe("scope exceptions in rules", () => {
     assert.equal(find(validateRule(withScope({ type: "all", except: "example.org" })), "scope.except")?.severity, "error");
   });
 
+  test("a repeated entry is a warning on the list, so the rule is still applied", () => {
+    const issues = validateRule(withScope({ type: "all", except: ["Example.org", "example.org"] }));
+    assert.deepEqual(issues.map(i => [i.severity, i.path.join(".")]), [["warning", "scope.except"]]);
+    assert.ok(issues[0].message.includes("example.org"));
+    assert.equal(usableRules([{ id: "dup", ...withScope({ type: "all", except: ["example.org", "example.org"] }) }]).length, 1);
+  });
+
+  test("a bad entry and a repeat are both reported", () => {
+    const issues = validateRule(withScope({ type: "all", except: ["*", "example.org", "example.org"] }));
+    assert.deepEqual(issues.map(i => i.severity).sort(), ["error", "warning"]);
+  });
+
   test("blank entries are not errors", () => {
     assert.deepEqual(validateRule(withScope({ type: "all", except: ["example.org", "", "  "] })), []);
   });

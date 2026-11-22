@@ -6,7 +6,7 @@
 // Validation returns issues; it never throws.
 
 import { normalizeHost } from "./scope.js";
-import { siteIssues } from "./exclusions.js";
+import { siteIssues, siteDuplicates } from "./exclusions.js";
 import { t } from "./text.js";
 
 export const SCHEMA_VERSION = 1;
@@ -175,10 +175,17 @@ function validateExceptions(except) {
   if (except === undefined) return [];
   if (!Array.isArray(except)) return [error(["scope", "except"], t("issue.except-not-list"))];
 
-  const issues = siteIssues(except);
-  if (issues.length === 0) return [];
+  const describe = issues => issues.map(issue => t("issue.except-entry", { entry: issue.entry, message: issue.message })).join(" ");
+  const result = [];
 
-  return [error(["scope", "except"], issues.map(issue => t("issue.except-entry", { entry: issue.entry, message: issue.message })).join(" "))];
+  const bad = siteIssues(except);
+  if (bad.length > 0) result.push(error(["scope", "except"], describe(bad)));
+
+  // A repeat does no harm, so it only warns.
+  const repeats = siteDuplicates(except);
+  if (repeats.length > 0) result.push(warning(["scope", "except"], describe(repeats)));
+
+  return result;
 }
 
 function validateScope(scope) {

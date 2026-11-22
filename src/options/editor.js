@@ -51,6 +51,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   let showAll = false; // after Save, or once a URL is in Try it, every issue is shown, and it stays shown
   let justSaved = false;
   let placeholder = t("editor.placeholder"); // what the empty editor says
+  let exceptionsOpen = false; // whether the user has opened the excluded sites of this rule
   let collapsedCards = []; // for each action of the draft, whether its card is collapsed; only shown, never stored
 
   // The tested URL is kept while the page is open, so it is still there when another rule is opened, but it is not stored.
@@ -143,10 +144,11 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
 
     const section = el("section", {}, el("h3", {}, t("scope.applies")), stack);
 
-    // Sites where the rule does nothing, for every scope.
-    // Drawn like the same list in Settings: a heading, the box labelled "Domains, one per line", and the hint.
-    section.append(el("div", { className: "excluded-sites" },
-      el("h3", {}, t("settings.excluded")),
+    // Sites where the rule does nothing, for every scope. Few rules need them, so the section is closed, and it opens by itself when the rule has some.
+    // Inside it is drawn like the same list in Settings: the box labelled "Domains, one per line", and the hint.
+    const hasExceptions = Array.isArray(draft.scope.except) && draft.scope.except.length > 0;
+    section.append(el("details", { className: "excluded-sites", open: hasExceptions || exceptionsOpen },
+      el("summary", {}, t("settings.excluded")),
       linesField(t("settings.excluded-label"), ["scope", "except"], t("placeholder.domain"), { rows: 2, grow: { minRows: 2, maxRows: 10 } }),
       el("p", { className: "hint" }, t("scope.excluded-hint")),
       slot("scope.except")));
@@ -583,6 +585,10 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
   // The toggle event does not bubble, so it is caught on the way down.
   root.addEventListener("toggle", event => {
     if (event.target.matches("details.changes")) tester.open = event.target.open;
+    if (event.target.matches("details.excluded-sites")) {
+      exceptionsOpen = event.target.open;
+      for (const fit of growing) fit(); // the box could not be measured while it was closed
+    }
   }, true);
 
   /** Where the focus goes when the action at `from` moves to `to`: the same control of the moved card. */
@@ -719,6 +725,7 @@ export function createEditor(root, { onSave, onChange, onDuplicate, onCancel, ge
       draft = clone(rule);
       baseline = clone(rule);
       collapsedCards = startCollapsed(draft);
+      exceptionsOpen = false;
       isNew = opened;
       touched = new Set();
       // A stored rule shows all its errors and warnings at once; a new one only after the user has typed.

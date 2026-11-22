@@ -31,6 +31,28 @@ export function siteIssues(sites) {
   return issues;
 }
 
+/**
+ * The entries that repeat an earlier one: [{ index, entry, message }].
+ * Entries are compared as domains, so case, spaces and the punycode form do not hide a repeat.
+ * Blank and bad entries are not repeats, and a subdomain of a listed domain is not either.
+ */
+export function siteDuplicates(sites) {
+  if (!Array.isArray(sites)) return [];
+
+  const seen = new Set();
+  const duplicates = [];
+  sites.forEach((entry, index) => {
+    const text = isText(entry) ? entry.trim() : "";
+    const host = normalizeHost(text);
+    if (host === null) return;
+
+    if (seen.has(host)) duplicates.push({ index, entry: text, message: t("site.duplicate") });
+    seen.add(host);
+  });
+
+  return duplicates;
+}
+
 /** The entries of a list that are plain domains, in order. */
 export function validSites(sites) {
   const bad = new Set(siteIssues(sites).map(issue => issue.index));
